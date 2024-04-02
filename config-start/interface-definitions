@@ -1,0 +1,49 @@
+interface Loopback254
+ description {management}
+ ip address {ip} {subnet?}
+!
+interface GigabitEthernet0/0
+ vrf forwarding Mgmt-vrf
+ no ip address
+ negotiation auto
+!
+interface GigabitEthernet1/0/1
+ description Access Port Only!
+ switchport access vlan 100
+ switchport mode access
+ switchport voice vlan 102
+ trust device cisco-phone
+ auto qos voip cisco-phone 
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ service-policy input AutoQos-4.0-CiscoPhone-Input-Policy
+ service-policy output AutoQos-4.0-Output-Policy
+!
+interface GigabitEthernet1/0/2
+ description Access Port Only!
+ switchport access vlan 100
+ switchport mode access
+ switchport voice vlan 102
+ trust device cisco-phone
+ auto qos voip cisco-phone 
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ service-policy input AutoQos-4.0-CiscoPhone-Input-Policy
+ service-policy output AutoQos-4.0-Output-Policy
+!
+interface GigabitEthernet1/0/3
+ description Access Port Only!
+ switchport access vlan 100
+ switchport mode access
+ switchport voice vlan 102
+ trust device cisco-phone
+ auto qos voip cisco-phone 
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ service-policy input AutoQos-4.0-CiscoPhone-Input-Policy
+ service-policy output AutoQos-4.0-Output-Policy
+!
+
+(and so on...)
+# We'll need to loop over both the switch stack and interface number. 
+Do we care about the middle number?
