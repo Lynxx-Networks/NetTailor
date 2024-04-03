@@ -1,6 +1,8 @@
+vlan {vlan-number}
+ name {vlan-name}
+
 interface Vlan{vlan-number}
- description The data subnetwork for IDF-J (10.100.100.0/23).
+ description {vlan-name}
  ip address {vlan100-ip} {vlan100-subnet}
  ip helper-address {dhcp-server1}
  ip helper-address {dhcp-server2}
-  ip igmp join-group 239.0.1.2

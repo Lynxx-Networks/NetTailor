@@ -10,6 +10,7 @@ ise-server
 timezone
 boot_bin
 switch_number
+switch_ip
 model
 vtp_domain
 auvik_collector
@@ -21,56 +22,39 @@ pim_address
 ntp_server
 snmp-ip
 snmp-servername
+client_domain
+location
 
 ### Current Config
 
-version {os-version}
 service timestamps debug datetime msec
 service timestamps log datetime msec
-service call-home
-platform punt-keepalive disable-kernel-core
 hostname {hostname}
+ip domain name {client_domain}
+crypto key generate rsa general-keys modulus 2048
+ip ssh version 2
 !
 ! (This seems probably fine for anywhere)
-vrf definition {client_name}-vrf
- !
- address-family ipv4
- exit-address-family
- !
- address-family ipv6
- exit-address-family
 !
-logging console emergencies
-aaa new-model
+logging console notifications
 !
-aaa group server tacacs+ {tacacs-server}
- server name {ise-server}
- ip tacacs source-interface Loopback254
-!
-aaa authentication login default group {tacacs-server} local
-aaa authentication enable default group {tacacs-server} enable
-!
-aaa session-id common
 clock timezone {timezone}
 clock summer-time cdt recurring
 !
-boot system switch all flash:{boot_bin}
-!
-! Provision Block - Depending on number of switches
-switch {switch_number} provision {model}
-!
 ! (Are these both needed? Do they change?)
+! (Is this a core switch? Enable ip routing. If it doesn't set a default gateway)
 ip routing
-no ip cef optimize neighbor resolution
 !
 login on-success log
 udld enable
 !
-! (vtp domain? What is this?)
-vtp domain {vtp_domain}
 vtp mode transparent
 !
+interface Loopback254
+ ip address {switch_ip}
+!
 ! I assume we want netflow for auvik?
+! (Only do flow records on layer 3 switch - ip routing enabled)
 flow record Record-FNF
  description Flexible NetFlow Monitoring
  match ipv4 tos
@@ -92,142 +76,58 @@ flow exporter Export-FNF-Monitor-1
  option application-table
 !
 flow monitor Monitor-FNF
- description IWAN Traffc Analysis
+ description Auvik Traffc Analysis
  exporter Export-FNF-Monitor-1
  cache timeout active 60
  record Record-FNF
 !
 authentication mac-move permit
 !
-table-map AutoQos-4.0-Trust-Dscp-Table
- default copy
-table-map policed-dscp
- map from  0 to 8
- map from  10 to 8
- map from  18 to 8
- map from  24 to 8
- map from  46 to 8
- default copy
-!
-{crypto_auth_block}
-!
-license boot level network-essentials addon dna-essentials
-memory free low-watermark processor 131696
-!
-diagnostic bootup level minimal
-!
 ! (How would these vary? Just depending on the vlan ids that we use?)
 spanning-tree mode rapid-pvst
-spanning-tree extend system-id
-spanning-tree vlan {vlan_range} priority 0
+! (Only run spanning-tree vlan on core switch with ip routing enabled)
+spanning-tree vlan {vlan_range} priority 4096
 !
 ! (Why secret 9?)
 enable secret 9 {encrypted_enable_pass}
-! (Probably 3rtadmin?)
 username {baseline_admin} privilege 15 secret 9 {encrypted_user_pass}
-!
-redundancy
- mode sso
-crypto engine compliance shield disable
-!
-transceiver type all
- monitoring
-!
-! The vlan definitions would look like this
-! vlan 100
-!  name Data
 !
 {vlan_definitions}
 !
-{class_map_definitions}
-!
-{policy_map_defintions}
-!
 {interface_definitions}
-!
 !
 interface Vlan1
  no ip address
+ shutdown
 !
-! What are the helper addresses? DHCP Servers?
-! What's a join group? Do we care about that?
-{vlan-definition}
-!
+! (Only if ip routing is enabled)
 {router-definitions}
 !
-ip forward-protocol nd
 no ip http server
 no ip http secure-server
 !
-! (What is this?)
-ip pim rp-address {pim_address}
-!
 {ip_routes}
+ip route (network) (subnet) (next-hop)
 !
-! (Well this seems secure - What do we need for acls?)
-ip access-list extended AutoQos-4.0-Acl-Default
- 10 permit ip any any
-!
-ip sla enable reaction-alerts
 logging trap notifications
 logging source-interface Loopback254
 logging host {auvik_collector}
 !
 {custom_snmp_config}
-snmp-server enable traps snmp authentication linkdown linkup coldstart warmstart
-snmp-server enable traps tty
-snmp-server enable traps eigrp
-snmp-server enable traps license
-snmp-server enable traps auth-framework sec-violation
-snmp-server enable traps config-copy
-snmp-server enable traps config
-snmp-server enable traps config-ctid
-snmp-server enable traps energywise
-snmp-server enable traps fru-ctrl
-snmp-server enable traps entity
-snmp-server enable traps flash insertion
-snmp-server enable traps flash removal
-snmp-server enable traps power-ethernet group 1 threshold 80
-snmp-server enable traps power-ethernet group 2 threshold 80
-snmp-server enable traps power-ethernet group 3 threshold 80
-snmp-server enable traps power-ethernet group 4 threshold 80
-snmp-server enable traps power-ethernet group 5 threshold 80
-snmp-server enable traps power-ethernet group 6 threshold 80
-snmp-server enable traps power-ethernet group 7 threshold 80
-snmp-server enable traps power-ethernet group 8 threshold 80
-snmp-server enable traps power-ethernet group 11 threshold 80
-snmp-server enable traps power-ethernet police
-snmp-server enable traps cpu threshold
-snmp-server enable traps syslog
-snmp-server enable traps vtp
-snmp-server enable traps vlancreate
-snmp-server enable traps vlandelete
-snmp-server enable traps port-security
-snmp-server enable traps envmon fan shutdown supply temperature status
-snmp-server enable traps stackwise
-snmp-server enable traps ipsla
-snmp-server enable traps event-manager
-snmp-server enable traps ipmulticast
-snmp-server enable traps pim neighbor-change rp-mapping-change invalid-pim-message
-snmp-server enable traps bridge newroot topologychange
-snmp-server enable traps stpx inconsistency root-inconsistency loop-inconsistency
-snmp-server enable traps mac-notification change move threshold
-snmp-server enable traps errdisable
-snmp-server enable traps vlan-membership
-snmp-server enable traps transceiver all
+snmp-server community {12 random characters alphanum} RO
+snmp-server trap-source Loopback254
+snmp-server location {location}
+
 ! (auvik collector?)
-snmp-server host {snmp-ip} version 2c {snmp-servername}
+snmp-server host {auvik-collector} version 2c {snmp-community-string}
 !
 ! (Does the tacacs server stuff change?)
 tacacs-server timeout 60
 tacacs server {tacacs-server}
  address ipv4 {tacacs-ip}
- key 7 {tacacs-key}
+ key {tacacs-key}
 !
-control-plane
- service-policy input system-cpp-policy
-!
-banner motd ^CC
+banner motd ^
 * *************************************************************************
 *                                                                         *
 * WARNING: This system is for the use of authorized {client_name}         *
@@ -247,11 +147,14 @@ banner motd ^CC
 * Access is restricted to authorized users only. Unauthorized access is   *
 * a violation of state and federal, civil and criminal laws.              *
 ***************************************************************************
-^C
+^
+!
+ip name-server {dns-server1}
+ip name-server {dns-server2}
 !
 line con 0
  exec-timeout 0 0
- password 7 {console_pw}
+ login local
  logging synchronous
  stopbits 1
 line vty 0 4
@@ -259,23 +162,20 @@ line vty 0 4
  transport input ssh
 line vty 5 15
  logging synchronous
- login authentication local_auth
  transport input ssh
 line vty 16 31
  transport input ssh
 !
-call-home
- ! If contact email address in call-home is configured as sch-smart-licensing@cisco.com
- ! the email address configured in Cisco Smart License Portal will be used as contact email address to send SCH notifications.
- contact-email-addr sch-smart-licensing@cisco.com
- profile "CiscoTAC-1"
-  active
-  destination transport-method http
-ntp server {ntp_server} prefer
+aaa new-model
 !
+aaa group server tacacs+ {tacacs-server}
+ server name {ise-server}
 !
+aaa authentication login default group {tacacs-server} local
+aaa authentication enable default group {tacacs-server} enable
 !
+aaa session-id common
 !
-!
+ntp server pool.ntp.org prefer
 !
 end

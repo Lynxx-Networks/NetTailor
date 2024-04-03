@@ -1,11 +1,8 @@
 router eigrp {router_number}
  {networks}
  redistribute static
- {interfaces}
- passive-interface Loopback254
+ passive-interface default
  eigrp stub connected static summary
 
  ------------------
  network {network1}
- ------------
- passive-interface {interfaces}
