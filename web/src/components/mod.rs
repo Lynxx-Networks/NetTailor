@@ -1,0 +1,19 @@
+// In components/mod.rs
+pub mod login;
+pub(crate) mod app_drawer;
+pub mod misc_func;
+pub(crate) mod saved;
+pub(crate) mod settings;
+pub(crate) mod user_stats;
+pub(crate) mod search;
+pub(crate) mod routes;
+pub(crate) mod home;
+pub(crate) mod context;
+pub(crate) mod create_config;
+pub(crate) mod html_scrub;
+pub(crate) mod empties;
+pub mod gen_funcs;
+pub(crate) mod search_nav;
+pub(crate) mod state_messages;
+
+pub mod setting_components;
