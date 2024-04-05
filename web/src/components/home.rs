@@ -107,8 +107,8 @@ pub fn home() -> Html {
                     }
                 } else {
                             empty_message(
-                                "No Recent Episodes Found",
-                                "You can add new podcasts by using the search bar above. Search for your favorite podcast and click the plus button to add it."
+                                "Sometimes I feel like",
+                                "Somebody's watchin me"
                             )
                         }
                     }

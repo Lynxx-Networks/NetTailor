@@ -210,7 +210,7 @@ pub fn api_keys() -> Html {
         }
             <div class="p-4">
                 <p class="item_container-text text-lg font-bold mb-4">{"API Keys:"}</p>
-                <p class="item_container-text text-md mb-4">{"You can request a Pinepods API Key here. These keys can then be used in conjunction with other Pinepods apps (like Pinepods Firewood) to connect them to the Pinepods server. In addition, you can also use an API Key to authenticate to this server from any other Pinepods server. Sort of like using a different server as a client for this one."}</p>
+                <p class="item_container-text text-md mb-4">{"You can request a NetTailor API Key here. These keys can then be used in conjunction with other NetTailor functions. Pulling down configs from devices for example. In addition, you can also use an API Key to authenticate to this server from any other NetTailor server. Sort of like using a different server as a client for this one."}</p>
                 <button onclick={request_api_key} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                     {"Request API Key"}
                 </button>

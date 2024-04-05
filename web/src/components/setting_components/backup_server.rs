@@ -57,7 +57,7 @@ pub fn backup_server() -> Html {
     html! {
         <div class="p-4">
             <p class="item_container-text text-lg font-bold mb-4">{"Backup Server Data:"}</p>
-            <p class="item_container-text text-md mb-4">{"Download a backup of the entire server database here. This includes all users, podcasts, episodes, settings, and API keys. Use this to migrate to a new server or restore your current server."}</p>
+            <p class="item_container-text text-md mb-4">{"Download a backup of the entire server database here. This includes all configs, users, settings, and API keys. Use this to migrate to a new server or restore your current server."}</p>
             <br/>
             <div class="flex items-center">
                 <input type="text" id="db=pw"                    

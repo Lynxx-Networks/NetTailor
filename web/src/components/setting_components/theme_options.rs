@@ -69,7 +69,7 @@ pub fn theme() -> Html {
     html! {
         <div class="p-4"> // You can adjust the padding as needed
             <p class="item_container-text text-lg font-bold mb-4">{"Theme Select:"}</p> // Styled paragraph
-            <p class="item_container-text text-md mb-4">{"You can select your application theme here. Choosing a theme will follow you to any official Pinepods application as your theme preference gets saved to your user settings."}</p> // Styled paragraph
+            <p class="item_container-text text-md mb-4">{"You can select your application theme here. Choosing a theme will follow you to any official NetTailor application as your theme preference gets saved to your user settings."}</p> // Styled paragraph
 
             <div class="theme-select-dropdown relative inline-block">
                 <select onchange={on_change} class="theme-select-dropdown appearance-none w-full border px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline">
