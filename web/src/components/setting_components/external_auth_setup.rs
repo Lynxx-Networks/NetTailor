@@ -13,10 +13,34 @@ pub fn external_auth() -> Html {
     let user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone());
     let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
         
+    {
+        let provider_values = email_values.clone();
+        use_effect_with((api_key.clone(), server_name.clone()), move |(api_key, server_name)| {
+            let email_values = email_values.clone();
+            let api_key = api_key.clone();
+            let server_name = server_name.clone();
+            let future = async move {
+                if let (Some(api_key), Some(server_name)) = (api_key, server_name) {
+                    let response = call_get_email_settings(server_name, api_key.unwrap()).await;
+                    match response {
+                        Ok(email_info) => {
+                            email_values.set(email_info);
+                        },
+                        Err(e) => console::log_1(&format!("Error getting user info: {}", e).into()),
+                    }
+                }
+            };
+            spawn_local(future);
+            // Return cleanup function
+            || {}
+        });
+    }
+
+
     let mut blob_property_bag = BlobPropertyBag::new();
     blob_property_bag.type_("text/xml");
     
-    let onclick = {
+    let configure_azure = {
         let blob_property_bag = blob_property_bag.clone();
         Callback::from(move |_| {
             let bloberty_bag = blob_property_bag.clone();
@@ -57,12 +81,39 @@ pub fn external_auth() -> Html {
 
     html! {
         <div class="p-4"> // You can adjust the padding as needed
-            <p class="item_container-text text-lg font-bold mb-4">{"Export Options:"}</p> // Styled paragraph
-            <p class="item_container-text text-md mb-4">{"You can export an OPML file containing your Podcasts here. This file can then be imported if you want to switch to a different podcast app or simply want a backup of your files just in case. Note, if you are exporting to add your podcasts to AntennaPod the Nextcloud Options below might better suit your needs. If you're an admin a full server backup might be a better solution as well on the Admin Settings Page."}</p> // Styled paragraph
+            <p class="item_container-text text-lg font-bold mb-4">{"External Auth Settings:"}</p> // Styled paragraph
+            <p class="item_container-text text-md mb-4">{"You can configure external login providers here. This will allow users to login utilizing external methods. "}</p> // Styled paragraph
 
-            <button onclick={onclick} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                {"Download/Export OPML"}
+            <p class="item_container-text text-lg font-bold mb-4">{"Currently Configured Auth Providers:"}</p>
+            <div class="relative overflow-x-auto">
+                <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs uppercase table-header">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">{"External Provider"}</th>
+                            <th scope="col" class="px-6 py-3">{"Setup"}</th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {
+                        // Access the state directly without let binding inside html!
+                        html! {
+                            <tr class="table-row border-b">
+                                <td class="px-6 py-4">{ &provider_values.provider }</td>
+                                <td class="px-6 py-4">{ &provider_values.setup }</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <button onclick={configure_azure} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                {"Configure Azure AD Provider"}
             </button>
+            // <button onclick={configure_github} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            //     {"Configure Github Provider"}
+            // </button>
         </div>
     }
 }
