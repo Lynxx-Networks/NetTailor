@@ -1,0 +1,23 @@
+# Use a Debian-based Rust image to build and test the application
+FROM rust:alpine3.19 as tester
+WORKDIR /usr/src/ActionListener
+
+
+# Install build dependencies
+RUN apk update && apk upgrade && \
+    apk add --no-cache musl-dev libffi-dev zlib-dev jpeg-dev
+
+# Install wasm target and build tools
+RUN rustup target add wasm32-unknown-unknown && \
+    cargo install trunk wasm-bindgen-cli
+
+# Add your application files to the builder stage
+COPY . /app
+WORKDIR /app/web
+
+# Build the Yew application in release mode
+RUN trunk build --release
+
+# Run the tests
+# The container's main purpose is to run tests, so we use CMD instead of RUN to make the test command the default action of the container
+CMD ["cargo", "test", "--", "--nocapture"]
