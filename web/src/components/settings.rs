@@ -199,6 +199,7 @@ pub fn settings() -> Html {
                     <div id="accordion-collapse" data-accordion="collapse" class="bg-custom-light">
                         <AccordionItem title="User Management" content={html!{ <setting_components::user_settings::UserSettings /> }} position={AccordionItemPosition::First}/>
                         <AccordionItem title="Email Settings" content={html!{ <setting_components::email_settings::EmailSettings /> }} position={AccordionItemPosition::Middle}/>
+                        <AccordionItem title="External Auth Settings" content={html!{ <setting_components::external_auth_setup::ExternalAuthSetup /> }} position={AccordionItemPosition::Middle}/>
                         <AccordionItem title="Backup Server" content={html!{ <setting_components::backup_server::BackupServer /> }} position={AccordionItemPosition::Middle}/>
                         <AccordionItem title="Restore Server" content={html!{ <setting_components::restore_server::RestoreServer /> }} position={AccordionItemPosition::Middle}/>
                     </div>

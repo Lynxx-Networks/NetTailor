@@ -204,6 +204,15 @@ try:
                         Theme VARCHAR(255) DEFAULT 'nordic',
                         FOREIGN KEY (UserID) REFERENCES Users(UserID)
                     )""")
+    
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ExternalAuth (
+                        ExternalAuthID INT AUTO_INCREMENT PRIMARY KEY,
+                        Provider VARCHAR(255) DEFAULT 'none',
+                        ClientID VARCHAR(255) DEFAULT 'none',
+                        TenantID VARCHAR(255) DEFAULT 'none',
+                        RedirectURI VARCHAR(255) DEFAULT 'none',
+                        Secret VARCHAR(255) DEFAULT 'none',
+                )""")
 
     cursor.execute("""INSERT IGNORE INTO UserSettings (UserID, Theme) VALUES ('1', 'nordic')""")
     cursor.execute("""INSERT IGNORE INTO UserSettings (UserID, Theme) VALUES ('2', 'nordic')""")

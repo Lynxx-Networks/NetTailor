@@ -1225,6 +1225,30 @@ async def api_add_user(is_admin: bool = Depends(check_if_admin), cnx=Depends(get
         user_values.fullname, user_values.username, user_values.email, user_values.hash_pw))
     return {"detail": "User added."}
 
+class ExternalAuthValues(BaseModel):
+    provider: str
+    client_id: str
+    tenant_id: str
+    redirect_uri: str
+    secret: str
+
+
+@app.post("/api/data/add_external_auth")
+async def api_add_external_auth(is_admin: bool = Depends(check_if_admin), cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header),
+                                external_auth_values: ExternalAuthValues = Body(...)):
+    # Assuming you have a function in your database module to handle adding external auth settings
+    database_functions.functions.add_external_auth(cnx, external_auth_values)
+    return {"detail": "External authentication settings added."}
+
+@app.get("/api/data/get_all_external_auths")
+async def api_get_all_external_auths(is_admin: bool = Depends(check_if_admin), cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
+    try:
+        # Fetching all external authentication settings
+        external_auth_values_list = database_functions.functions.get_all_external_auths(cnx)
+        return external_auth_values_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch external authentication settings: " + str(e))
+
 
 @app.post("/api/data/add_login_user")
 async def api_add_user(cnx=Depends(get_database_connection),

@@ -1,7 +1,6 @@
 use yew::{function_component, Html, html};
 use yew::prelude::*;
 use super::app_drawer::App_drawer;
-use crate::requests::pod_req;
 use yewdux::prelude::*;
 use yew_router::history::BrowserHistory;
 use crate::components::context::{AppState, UIState};
@@ -94,24 +93,32 @@ pub fn home() -> Html {
         <div class="main-container">
             <Search_nav />
             {
-                if *loading { // If loading is true, display the loading animation
-                    html! {
-                        <div class="loading-animation">
-                            <div class="frame1"></div>
-                            <div class="frame2"></div>
-                            <div class="frame3"></div>
-                            <div class="frame4"></div>
-                            <div class="frame5"></div>
-                            <div class="frame6"></div>
+                html! {
+                    // <div class="flex flex-col space-y-4 w-full max-w-xs p-8 border border-gray-300 rounded-lg shadow-lg bg-gray-600">
+
+                        <div class="container mx-auto text-center p-10">
+                            <div class="flex justify-center items-center">
+                                <img class="object-scale-down h-20 w-66" src="static/assets/favicon.png" alt="NetTailor Logo" />
+                            </div>
+                            <h1 class="item_container-text text-4xl font-bold mb-5">{"Welcome to the NetTailor"}</h1>
+                            <div>
+                                <button
+                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-4"
+                                    onclick={Callback::from(|_| log::info!("Create new configuration"))}
+                                >
+                                    {"Create New Configuration"}
+                                </button>
+                                <button
+                                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full"
+                                    onclick={Callback::from(|_| log::info!("Search for existing configuration"))}
+                                >
+                                    {"Search for Existing Configuration"}
+                                </button>
+                            </div>
                         </div>
-                    }
-                } else {
-                            empty_message(
-                                "Sometimes I feel like",
-                                "Somebody's watchin me"
-                            )
-                        }
-                    }
+                    // </div>
+                }
+            }
         // Conditional rendering for the error banner
         if let Some(error) = error_message {
             <div class="error-snackbar">{ error }</div>

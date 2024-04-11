@@ -116,6 +116,43 @@ def add_user(cnx, user_values):
     cursor.close()
     # cnx.close()
 
+def add_external_auth(cnx, external_auth_values):
+    cursor = cnx.cursor()
+
+    add_auth_query = ("INSERT INTO ExternalAuth "
+                        "(Provider, ClientID, TenantID, RedirectURI, Secret) "
+                        "VALUES (%s, %s, %s, %s, %s)")
+
+    # Use the attributes from the Pydantic model
+    cursor.execute(add_auth_query, (external_auth_values.provider, external_auth_values.client_id, 
+                                    external_auth_values.tenant_id, external_auth_values.redirect_uri, 
+                                    external_auth_values.secret))
+
+    cnx.commit()
+    cursor.close()
+
+def get_all_external_auths(cnx):
+    cursor = cnx.cursor()
+    try:
+        query = "SELECT Provider, ClientID, TenantID, RedirectURI, Secret FROM ExternalAuth"
+        cursor.execute(query)
+        results = cursor.fetchall()
+        auth_settings_list = []
+
+        for result in results:
+            external_auth_values = ExternalAuthValues(
+                provider=result[0],
+                client_id=result[1],
+                tenant_id=result[2],
+                redirect_uri=result[3],
+                secret=result[4]
+            )
+            auth_settings_list.append(external_auth_values.dict())  # Convert Pydantic models to dicts for JSON serialization
+        
+        return auth_settings_list
+    finally:
+        cursor.close()
+
 
 def add_admin_user(cnx, user_values):
     cursor = cnx.cursor()
