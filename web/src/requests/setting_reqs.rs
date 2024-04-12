@@ -1006,16 +1006,17 @@ pub struct ExternalAuthResponse {
 }
 
 pub async fn call_add_external_auth(
-    server_name: &str,
-    api_key: &str,
+    server_name: String,
+    api_key: String,
     auth_request: ExternalAuthRequest,
 ) -> Result<ExternalAuthResponse, anyhow::Error> {
     let url = format!("{}/api/data/add_external_auth", server_name);
     let request_body = serde_json::to_string(&auth_request)?;
+    let api_key_ref = api_key.as_str();
 
     let response = Request::post(&url)
         .header("Content-Type", "application/json")
-        .header("Api-Key", api_key)
+        .header("Api-Key", api_key_ref)
         .body(request_body)?
         .send()
         .await?;
@@ -1035,7 +1036,7 @@ pub async fn call_add_external_auth(
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ExternalAuthSetting {
     pub provider: String,
     pub client_id: String,
