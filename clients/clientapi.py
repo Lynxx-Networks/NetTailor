@@ -4,6 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Header, Body, Path,
 from fastapi.security import APIKeyHeader, HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import PlainTextResponse, JSONResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 from starlette.concurrency import run_in_threadpool
 import smtplib
 from email.mime.text import MIMEText
@@ -47,6 +48,7 @@ sys.path.append('/nettailor')
 
 import database_functions.functions
 import database_functions.auth_functions
+import database_functions.app_functions
 
 database_type = str(os.getenv('DB_TYPE', 'mariadb'))
 if database_type == "postgresql":
@@ -85,10 +87,6 @@ proxy_host = os.environ.get("HOSTNAME", "localhost")
 proxy_port = os.environ.get("NETTAILOR_PORT", "8040")
 proxy_protocol = os.environ.get("PROXY_PROTOCOL", "http")
 reverse_proxy = os.environ.get("REVERSE_PROXY", "False")
-
-# Podcast Index API url
-api_url = os.environ.get("SEARCH_API_URL", "https://api.pinepods.online/api/search")
-print(f'Search API URL: {api_url}')
 
 # Initial Vars needed to start and used throughout
 if reverse_proxy == "True":
@@ -351,12 +349,11 @@ async def api_check_saved_session(session_value: str, cnx=Depends(get_database_c
 
 @app.get("/api/data/config")
 async def api_config(api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
-    global api_url, proxy_url, proxy_host, proxy_port, proxy_protocol, reverse_proxy
+    global proxy_url, proxy_host, proxy_port, proxy_protocol, reverse_proxy
 
     is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
     if is_valid_key:
         return {
-            "api_url": api_url,
             "proxy_url": proxy_url,
             "proxy_host": proxy_host,
             "proxy_port": proxy_port,
@@ -417,33 +414,6 @@ async def api_get_user_details(username: str, cnx=Depends(get_database_connectio
         return result
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-
-class SessionData(BaseModel):
-    session_token: str
-
-
-@app.post("/api/data/create_session/{user_id}")
-async def api_create_session(user_id: int, session_data: SessionData, cnx=Depends(get_database_connection),
-                             api_key: str = Depends(get_api_key_from_header)):
-    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
-    if not is_valid_key:
-        raise HTTPException(status_code=403,
-                            detail="Your API key is either invalid or does not have correct permission")
-
-    # Check if the provided API key is the web key
-    is_web_key = api_key == base_webkey.web_key
-
-    key_id = database_functions.functions.id_from_api_key(cnx, api_key)
-
-    # Allow the action if the API key belongs to the user or it's the web API key
-    if key_id == user_id or is_web_key:
-        database_functions.functions.create_session(cnx, user_id, session_data.session_token)
-        return {"status": "success"}
-    else:
-        raise HTTPException(status_code=403,
-                            detail="You can only make sessions for yourself!")
-
 
 class VerifyPasswordInput(BaseModel):
     username: str
@@ -1243,13 +1213,27 @@ async def api_add_external_auth(is_admin: bool = Depends(check_if_admin), cnx=De
 @app.get("/api/data/get_all_external_auths")
 async def api_get_all_external_auths(is_admin: bool = Depends(check_if_admin), cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
     try:
-        # Fetching all external authentication settings
-        external_auth_values_list = database_functions.functions.get_all_external_auths(cnx)
-        return external_auth_values_list
+        results = database_functions.functions.get_all_external_auths(cnx)
+        external_auth_values_list = [
+            ExternalAuthValues(provider=result[0], client_id=result[1], tenant_id=result[2], redirect_uri=result[3], secret=result[4]).dict()
+            for result in results
+        ]
+        return {"data": external_auth_values_list}  # Wrap the list in a "data" key
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch external authentication settings: " + str(e))
 
-
+@app.get("/api/data/get_azure_auth")
+async def api_get_azure_auth(cnx=Depends(get_database_connection)):
+    try:
+        azure_auth_values = database_functions.functions.get_azure_auth(cnx)
+        return azure_auth_values
+    except Exception as e:
+        logging.error(f"Failed to fetch Azure authentication settings: {e}", exc_info=True)  # Log the exception with traceback
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch Azure authentication settings: {str(e)}"
+        )
+    
 @app.post("/api/data/add_login_user")
 async def api_add_user(cnx=Depends(get_database_connection),
                        user_values: UserValues = Body(...)):
@@ -1262,6 +1246,36 @@ async def api_add_user(cnx=Depends(get_database_connection),
         raise HTTPException(status_code=403,
                             detail="Your API key is either invalid or does not have correct permission")
 
+
+@app.post("/api/auth/azure/callback")
+async def azure_auth_callback(request: Request, cnx=Depends(get_database_connection)):
+    try:
+        body = await request.json()
+        code = body.get('code')
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code is missing")
+
+        token_response = database_functions.functions.exchange_code_for_token(cnx, code)
+        access_token = token_response.get('access_token')
+        id_token = token_response.get('id_token') # This will be used to get user info
+        azure_config = database_functions.functions.get_azure_config(cnx)
+
+        # Decode ID token to get user details
+        user_info = database_functions.auth_functions.decode_id_token(id_token, azure_config['tenant_id'], azure_config['client_id'])
+
+        # Check if user exists or create new user
+        user = database_functions.functions.get_user_by_email(cnx, user_info['email'])
+        if not user:
+            user_id = database_functions.functions.add_azure_user(cnx, user_info)
+            user = database_functions.functions.get_user_details_id(cnx, user_id)
+
+        # Create session or token for the user
+        session_token = database_functions.functions.create_session_for_user(cnx, user['UserID'])
+
+        return {"access_token": session_token, "user": user}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/data/set_fullname/{user_id}")
 async def api_set_fullname(user_id: int, new_name: str = Query(...), cnx=Depends(get_database_connection),

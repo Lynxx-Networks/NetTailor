@@ -156,7 +156,6 @@ pub async fn call_get_user_details(server_name: &str, api_key: &str, user_id: &i
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct GetApiDetails {
     // Add fields according to your API's JSON response
-    pub api_url: Option<String>,
     pub proxy_url: Option<String>,
     pub proxy_host: Option<String>,
     pub proxy_port: Option<String>,
@@ -231,10 +230,6 @@ pub async fn login_new_server(server_name: String, username: String, password: S
 
             // Step 5: Get server details
             let server_details = call_get_api_config(&server_name, &api_key).await?;
-            if server_details.api_url.is_none() {
-                return Err(anyhow::Error::msg("Failed to get server details"));
-            }
-
             Ok((user_details, login_request, server_details))
         },
         Err(e) => {
@@ -474,6 +469,29 @@ pub async fn call_self_service_login_status(server_name: String) -> Result<bool,
         Ok(status_response.status)
     } else {
         Err(Error::msg(format!("Error fetching self service status: {}", response.status_text())))
+    }
+}
+
+#[derive(Deserialize, Debug, PartialEq, Clone)]
+pub struct AzureLoginValues {
+    pub(crate) client_id: String,
+    pub(crate) tenant_id: String,
+    pub(crate) redirect_uri: String,
+}
+
+pub async fn call_azure_login_status(server_name: String) -> Result<AzureLoginValues, Error> {
+    let url = format!("{}/api/data/get_azure_auth", server_name);
+
+    let response = Request::get(&url)
+        .send()
+        .await
+        .map_err(|e| Error::msg(format!("Network error: {}", e)))?;
+
+    if response.ok() {
+        let azure_login_values: AzureLoginValues = response.json().await.map_err(|e| Error::msg(format!("Error parsing JSON: {}", e)))?;
+        Ok(azure_login_values)
+    } else {
+        Err(Error::msg(format!("Error fetching Azure auth details: {}", response.status_text())))
     }
 }
 

@@ -69,6 +69,13 @@ pub fn external_auth() -> Html {
         })
     };
 
+    let configure_github = {
+        let page_state = page_state.clone();
+        Callback::from(move |_| {
+            page_state.set(PageState::Github);
+        })
+    };
+
     let login_endpoint = {
         let url_endpoint = url_endpoint.clone();
         Callback::from(move |e: InputEvent| {
@@ -105,6 +112,7 @@ pub fn external_auth() -> Html {
         let url_endpoint = url_endpoint.clone().to_string();
         let client_id = client_id.clone().to_string();
         let tenant_id = azure_tenant_id.clone();
+        let client_secret = client_secret.clone().to_string();
         // let on_update_trigger = update_trigger.clone();
         Callback::from(move |e: MouseEvent| {
             // let error_container = error_container_create.clone();
@@ -123,7 +131,7 @@ pub fn external_auth() -> Html {
                 client_id: client_id.clone(),
                 tenant_id: tenant_id_clone, 
                 redirect_uri: url_endpoint.clone(),
-                secret: "".to_string(),
+                secret: client_secret.clone(),
             };
             let add_azure_request = Some(provider_settings);
             page_state.set(PageState::Hidden);
@@ -220,12 +228,17 @@ pub fn external_auth() -> Html {
                                 <input oninput={on_client_id.clone()} placeholder="Pinepods User" type="text" id="fullname" name="fullname" class="search-bar-input border text-sm rounded-lg block w-full p-2.5" required=true />
                             </div>
                             <div>
+                                <label for="client_secret" class="block mb-2 text-sm font-medium">{"Tenant ID"}</label>
+                                <input oninput={on_client_secret.clone()} placeholder="user@pinepods.online" type="password" id="password" name="password" class="search-bar-input border text-sm rounded-lg block w-full p-2.5" required=true />
+
+                            </div>
+                            <div>
                                 <label for="tenant_id" class="block mb-2 text-sm font-medium">{"Tenant ID"}</label>
                                 <input oninput={on_tenant_id.clone()} placeholder="user@pinepods.online" type="email" id="email" name="email" class="search-bar-input border text-sm rounded-lg block w-full p-2.5" required=true />
 
                             </div>
-                            <button onclick={configure_azure.clone()} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                                {"Configure Azure AD Provider"}
+                            <button onclick={on_azure_submit.clone()} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                {"Submit"}
                             </button>
                             // <button type="submit" onclick={on_create_submit} class="download-button w-full focus:ring-4 focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 text-center">{"Submit"}</button>
                         </form>
@@ -266,8 +279,8 @@ pub fn external_auth() -> Html {
                                 <input oninput={on_tenant_id.clone()} placeholder="user@pinepods.online" type="email" id="email" name="email" class="search-bar-input border text-sm rounded-lg block w-full p-2.5" required=true />
 
                             </div>
-                            <button onclick={configure_azure} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                                {"Configure Azure AD Provider"}
+                            <button onclick={on_github_submit.clone()} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                {"Submit"}
                             </button>
                             // <button type="submit" onclick={on_create_submit} class="download-button w-full focus:ring-4 focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 text-center">{"Submit"}</button>
                         </form>
@@ -320,6 +333,14 @@ pub fn external_auth() -> Html {
                         }
                         </tbody>
                     </table>
+                    <div class="flex mt-4">
+                    <button onclick={configure_azure} class="settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mr-2">
+                        {"Setup Azure AD Provider"}
+                    </button>
+                    <button onclick={configure_github} class="settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mr-2">
+                    {"Setup Github Provider"}
+                </button>
+                </div>
                 </div>
                 // <button onclick={configure_github} class="mt-4 settings-button font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                 //     {"Configure Github Provider"}

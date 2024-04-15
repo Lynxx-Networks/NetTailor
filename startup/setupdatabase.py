@@ -211,7 +211,7 @@ try:
                         ClientID VARCHAR(255) DEFAULT 'none',
                         TenantID VARCHAR(255) DEFAULT 'none',
                         RedirectURI VARCHAR(255) DEFAULT 'none',
-                        Secret VARCHAR(255) DEFAULT 'none',
+                        Secret VARCHAR(255) DEFAULT 'none'
                 )""")
 
     cursor.execute("""INSERT IGNORE INTO UserSettings (UserID, Theme) VALUES ('1', 'nordic')""")

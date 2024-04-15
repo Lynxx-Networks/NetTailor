@@ -116,6 +116,46 @@ def add_user(cnx, user_values):
     cursor.close()
     # cnx.close()
 
+def add_azure_user(cnx, user_info):
+    cursor = cnx.cursor()
+    
+    try:
+        # Assuming 'name' and 'email' are provided in user_info, and no password is needed
+        fullname = user_info.get('name', '')
+        username = user_info.get('email').split('@')[0]  # Simplistic username generation from email
+        email = user_info.get('email')
+        hashed_pw = 'external'  # Placeholder or use NULL if your DB schema allows
+
+        add_user_query = ("INSERT INTO Users "
+                          "(Fullname, Username, Email, Hashed_PW, IsAdmin) "
+                          "VALUES (%s, %s, %s, %s, 0)")
+        cursor.execute(add_user_query, (fullname, username, email, hashed_pw))
+
+        user_id = cursor.lastrowid
+
+        # Add default settings for the new user
+        add_user_settings_query = ("INSERT INTO UserSettings "
+                                   "(UserID, Theme) "
+                                   "VALUES (%s, 'nordic')")
+        cursor.execute(add_user_settings_query, (user_id,))
+
+        # Add default stats for the new user
+        add_user_stats_query = ("INSERT INTO UserStats "
+                                "(UserID) "
+                                "VALUES (%s)")
+        cursor.execute(add_user_stats_query, (user_id,))
+
+        cnx.commit()
+
+        # Return some form of user identifier or object
+        return user_id
+    except Exception as e:
+        cnx.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+
 def add_external_auth(cnx, external_auth_values):
     cursor = cnx.cursor()
 
@@ -137,21 +177,30 @@ def get_all_external_auths(cnx):
         query = "SELECT Provider, ClientID, TenantID, RedirectURI, Secret FROM ExternalAuth"
         cursor.execute(query)
         results = cursor.fetchall()
-        auth_settings_list = []
-
-        for result in results:
-            external_auth_values = ExternalAuthValues(
-                provider=result[0],
-                client_id=result[1],
-                tenant_id=result[2],
-                redirect_uri=result[3],
-                secret=result[4]
-            )
-            auth_settings_list.append(external_auth_values.dict())  # Convert Pydantic models to dicts for JSON serialization
-        
-        return auth_settings_list
+        return results
     finally:
         cursor.close()
+
+def get_azure_auth(cnx):
+    cursor = cnx.cursor()
+    try:
+        query = "SELECT ClientID, TenantID, RedirectURI FROM ExternalAuth WHERE provider = 'Azure'"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        if result:
+            return {
+                "client_id": result[0],
+                "tenant_id": result[1],
+                "redirect_uri": result[2]
+            }
+        else:
+            raise Exception("No Azure auth settings found.")
+    except Exception as e:
+        logging.error("Error fetching Azure auth settings from the database", exc_info=True)
+        raise e
+    finally:
+        cursor.close()
+
 
 
 def add_admin_user(cnx, user_values):
@@ -323,6 +372,58 @@ def remove_podcast(cnx, podcast_name, podcast_url, user_id):
     finally:
         cursor.close()
         # cnx.close()
+
+def get_azure_config(cnx):
+    cursor = cnx.cursor()
+    try:
+        # Fetch all necessary Azure configuration details
+        cursor.execute("""
+            SELECT TenantID, ClientID, Secret, RedirectURI 
+            FROM ExternalAuth 
+            WHERE Provider = 'Azure'
+        """)
+        result = cursor.fetchone()
+        if result:
+            return {
+                "TenantID": result[0],
+                "ClientID": result[1],
+                "Secret": result[2],
+                "RedirectURI": result[3]
+            }
+        else:
+            raise Exception("Azure configuration not found in the database.")
+    finally:
+        cursor.close()
+
+
+def exchange_code_for_token(cnx, code):
+    try:
+        azure_config = get_azure_config(cnx)
+        tenant_id = azure_config['TenantID']
+        client_id = azure_config['ClientID']
+        client_secret = azure_config['Secret']
+        redirect_uri = azure_config['RedirectURI']
+
+        token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+
+        data = {
+            "grant_type": "authorization_code",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "scope": "openid email profile"
+        }
+
+        response = requests.post(token_url, data=data)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            response_data = response.json()
+            raise Exception(f"Failed to exchange code for token: {response_data.get('error_description', 'No error description provided')}")
+    except Exception as e:
+        raise Exception(f"Error during token exchange: {str(e)}")
+
 
 def remove_podcast_id(cnx, podcast_id, user_id):
     cursor = cnx.cursor()
@@ -744,6 +845,24 @@ def get_user_details(cnx, username):
     else:
         return None
 
+def get_user_details_email(cnx, email):
+    cursor = cnx.cursor()
+    query = "SELECT * FROM Users WHERE Email = %s"
+    cursor.execute(query, (email,))
+    result = cursor.fetchone()
+    cursor.close()
+    # cnx.close()
+
+    if result:
+        return {
+            'UserID': result[0],
+            'Fullname': result[1],
+            'Username': result[2],
+            'Email': result[3],
+            'Hashed_PW': result[4]
+        }
+    else:
+        return None
 
 def get_user_details_id(cnx, user_id):
     cursor = cnx.cursor()
@@ -1909,19 +2028,23 @@ def check_saved_web_session(cnx, session_value):
     # cnx.close()
 
 
-def create_session(cnx, user_id, session_value):
-    # Calculate the expiration date 30 days in the future
-    expire_date = datetime.datetime.now() + datetime.timedelta(days=30)
-
-    # Insert the new session into the Sessions table
+def create_session_for_user(cnx, user_id):
+    import uuid
+    import datetime
     cursor = cnx.cursor()
-    cursor.execute("""
-    INSERT INTO Sessions (UserID, value, expire) VALUES (%s, %s, %s);
-    """, (user_id, session_value, expire_date))
+    session_id = str(uuid.uuid4())  # Generate a unique session identifier
+    expiration_time = datetime.datetime.utcnow() + datetime.timedelta(days=1)  # 1 day expiration
 
+    # Insert the session into the Sessions table
+    insert_session_query = """
+        INSERT INTO Sessions (UserID, value, expire)
+        VALUES (%s, %s, %s)
+    """
+    cursor.execute(insert_session_query, (user_id, session_id, expiration_time))
     cnx.commit()
     cursor.close()
-    # cnx.close()
+
+    return session_id
 
 
 def create_web_session(cnx, user_id, session_value):

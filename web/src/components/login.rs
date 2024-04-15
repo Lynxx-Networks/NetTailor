@@ -10,7 +10,7 @@ use crate::components::context::{AppState, UIState};
 // use yewdux::prelude::*;
 use md5;
 use yewdux::prelude::*;
-use crate::requests::login_requests::{AddUserRequest, call_add_login_user};
+use crate::requests::login_requests::{AddUserRequest, call_add_login_user, call_azure_login_status};
 use crate::requests::setting_reqs::call_get_theme;
 use crate::components::gen_funcs::{encode_password, validate_user_input};
 use crate::components::state_messages::UIStateMsg;
@@ -57,6 +57,8 @@ pub fn login() -> Html {
     // Define the initial state
     let page_state = use_state(|| PageState::Default);
     let self_service_enabled = use_state(|| false); // State to store self-service status
+    let azure_login_enabled = use_state(|| false); // State to store self-service status
+
     let effect_self_service = self_service_enabled.clone();
     use_effect_with(
         // No dependencies, so we pass an empty tuple to run this effect once on component mount
@@ -83,6 +85,46 @@ pub fn login() -> Html {
             || ()
         },
     );
+
+    let effect_azure_login = self_service_enabled.clone();
+    use_effect_with(
+        // No dependencies, so we pass an empty tuple to run this effect once on component mount
+        (),
+        move |_| {
+            let azure_login_enabled = effect_azure_login.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                // Example server_name retrieval, adjust according to your needs
+                let window = web_sys::window().expect("no global `window` exists");
+                let location = window.location();
+                let server_name = location.href().expect("should have a href").trim_end_matches('/').to_string();
+                console::log_1(&format!("Server Name: {:?}", &server_name).into());
+                match call_azure_login_status(server_name).await {
+                    Ok(azure_values) => {
+                        // azure_login_enabled.set(true);
+                        let window = web_sys::window().expect("no global `window` exists");
+                        let storage = window.local_storage().unwrap().expect("should have local storage");
+    
+                        // Storing Azure Auth values in local storage
+                        storage.set_item("azure_client_id", &azure_values.client_id).unwrap();
+                        storage.set_item("azure_tenant_id", &azure_values.tenant_id).unwrap();
+                        storage.set_item("azure_redirect_uri", &azure_values.redirect_uri).unwrap();
+                        console::log_1(&"Azure auth settings saved to local storage".into());
+                    
+                        // Enable the Azure login button
+                        azure_login_enabled.set(true);
+                    }
+                    Err(e) => {
+                        azure_login_enabled.set(false);
+                        web_sys::console::log_1(&format!("Error fetching Azure login status: {:?}", e).into());
+                    }
+                }
+            });
+    
+            // Cleanup function, not needed in this case
+            || ()
+        },
+    );
+    
 
 
     {
@@ -299,9 +341,14 @@ pub fn login() -> Html {
             let temp_api_key = call_api_key_azure.clone();
             let temp_user_id = call_user_id_azure.clone();
 
-            let client_id = "your_application_client_id";
-            let tenant_id = "your_directory_tenant_id";
-            let redirect_uri = "http://localhost:8080/auth";
+            // Retrieve the Azure Auth values from local storage
+            let window = web_sys::window().expect("no global `window` exists");
+            let storage = window.local_storage().unwrap().expect("should have local storage");
+            
+            let client_id = storage.get_item("azure_client_id").unwrap().unwrap_or_default();
+            let tenant_id = storage.get_item("azure_tenant_id").unwrap().unwrap_or_default();
+            let redirect_uri = storage.get_item("azure_redirect_uri").unwrap().unwrap_or_default();
+    
             let auth_url = format!(
                 "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize?client_id={}&response_type=code&redirect_uri={}&response_mode=query&scope=openid%20profile&state=12345&prompt=select_account",
                 tenant_id, client_id, redirect_uri
@@ -1181,10 +1228,23 @@ pub fn login() -> Html {
                         </svg>
                         {"Sign in with Github"}
                     </button>
+                    // {
+                    //     if *azure_login_enabled {
+                    //         html! {
+                    //             <button type="button" onclick={begin_azure_auth} class="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 me-4 mb-2">
+                    //                 <svg id="bdb56329-4717-4410-aa13-4505ecaa4e46" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><defs><linearGradient id="ba2610c3-a45a-4e7e-a0c0-285cfd7e005d" x1="13.25" y1="13.02" x2="8.62" y2="4.25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1988d9" /><stop offset="0.9" stop-color="#54aef0" /></linearGradient><linearGradient id="bd8f618b-4f2f-4cb7-aff0-2fd2d211326d" x1="11.26" y1="10.47" x2="14.46" y2="15.99" gradientUnits="userSpaceOnUse"><stop offset="0.1" stop-color="#54aef0" /><stop offset="0.29" stop-color="#4fabee" /><stop offset="0.51" stop-color="#41a2e9" /><stop offset="0.74" stop-color="#2a93e0" /><stop offset="0.88" stop-color="#1988d9" /></linearGradient></defs><title>{"Icon-identity-221"}</title><polygon points="1.01 10.19 8.93 15.33 16.99 10.17 18 11.35 8.93 17.19 0 11.35 1.01 10.19" fill="#50e6ff" /><polygon points="1.61 9.53 8.93 0.81 16.4 9.54 8.93 14.26 1.61 9.53" fill="#fff" /><polygon points="8.93 0.81 8.93 14.26 1.61 9.53 8.93 0.81" fill="#50e6ff" /><polygon points="8.93 0.81 8.93 14.26 16.4 9.54 8.93 0.81" fill="url(#ba2610c3-a45a-4e7e-a0c0-285cfd7e005d)" /><polygon points="8.93 7.76 16.4 9.54 8.93 14.26 8.93 7.76" fill="#53b1e0" /><polygon points="8.93 14.26 1.61 9.53 8.93 7.76 8.93 14.26" fill="#9cebff" /><polygon points="8.93 17.19 18 11.35 16.99 10.17 8.93 15.33 8.93 17.19" fill="url(#bd8f618b-4f2f-4cb7-aff0-2fd2d211326d)" /></svg>
+                    //                 {"  Sign in with Azure"}
+                    //             </button>
+                    //         }
+                    //     } else {
+                    //         html! {}
+                    //     }
+                    // }
                     <button type="button" onclick={begin_azure_auth} class="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 me-4 mb-2">
                         <svg id="bdb56329-4717-4410-aa13-4505ecaa4e46" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><defs><linearGradient id="ba2610c3-a45a-4e7e-a0c0-285cfd7e005d" x1="13.25" y1="13.02" x2="8.62" y2="4.25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1988d9" /><stop offset="0.9" stop-color="#54aef0" /></linearGradient><linearGradient id="bd8f618b-4f2f-4cb7-aff0-2fd2d211326d" x1="11.26" y1="10.47" x2="14.46" y2="15.99" gradientUnits="userSpaceOnUse"><stop offset="0.1" stop-color="#54aef0" /><stop offset="0.29" stop-color="#4fabee" /><stop offset="0.51" stop-color="#41a2e9" /><stop offset="0.74" stop-color="#2a93e0" /><stop offset="0.88" stop-color="#1988d9" /></linearGradient></defs><title>{"Icon-identity-221"}</title><polygon points="1.01 10.19 8.93 15.33 16.99 10.17 18 11.35 8.93 17.19 0 11.35 1.01 10.19" fill="#50e6ff" /><polygon points="1.61 9.53 8.93 0.81 16.4 9.54 8.93 14.26 1.61 9.53" fill="#fff" /><polygon points="8.93 0.81 8.93 14.26 1.61 9.53 8.93 0.81" fill="#50e6ff" /><polygon points="8.93 0.81 8.93 14.26 16.4 9.54 8.93 0.81" fill="url(#ba2610c3-a45a-4e7e-a0c0-285cfd7e005d)" /><polygon points="8.93 7.76 16.4 9.54 8.93 14.26 8.93 7.76" fill="#53b1e0" /><polygon points="8.93 14.26 1.61 9.53 8.93 7.76 8.93 14.26" fill="#9cebff" /><polygon points="8.93 17.19 18 11.35 16.99 10.17 8.93 15.33 8.93 17.19" fill="url(#bd8f618b-4f2f-4cb7-aff0-2fd2d211326d)" /></svg>
                         {"  Sign in with Azure"}
                     </button>
+
 
                 </div>
                 {
