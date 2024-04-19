@@ -184,20 +184,23 @@ def get_all_external_auths(cnx):
 def get_azure_auth(cnx):
     cursor = cnx.cursor()
     try:
-        query = "SELECT ClientID, TenantID, RedirectURI FROM ExternalAuth WHERE provider = 'Azure'"
+        query = "SELECT ClientID, TenantID, RedirectURI, Secret FROM ExternalAuth WHERE provider = 'Azure'"
         cursor.execute(query)
         result = cursor.fetchone()
         if result:
             return {
                 "client_id": result[0],
                 "tenant_id": result[1],
-                "redirect_uri": result[2]
+                "redirect_uri": result[2],
+                "client_secret": result[3]
             }
         else:
-            raise Exception("No Azure auth settings found.")
+            # Return None or an empty dict to indicate no settings were found
+            return None
     except Exception as e:
         logging.error("Error fetching Azure auth settings from the database", exc_info=True)
-        raise e
+        # Optionally, you can still log the error for diagnostics without raising an exception
+        return None
     finally:
         cursor.close()
 
@@ -395,33 +398,31 @@ def get_azure_config(cnx):
     finally:
         cursor.close()
 
-
 def exchange_code_for_token(cnx, code):
     try:
         azure_config = get_azure_config(cnx)
-        tenant_id = azure_config['TenantID']
-        client_id = azure_config['ClientID']
-        client_secret = azure_config['Secret']
-        redirect_uri = azure_config['RedirectURI']
-
-        token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-
+        token_url = f"https://login.microsoftonline.com/{azure_config['TenantID']}/oauth2/v2.0/token"
         data = {
             "grant_type": "authorization_code",
-            "client_id": client_id,
-            "client_secret": client_secret,
+            "client_id": azure_config['ClientID'],
+            "client_secret": azure_config['Secret'],
             "code": code,
-            "redirect_uri": redirect_uri,
+            "redirect_uri": azure_config['RedirectURI'],
             "scope": "openid email profile"
         }
-
+        
         response = requests.post(token_url, data=data)
+        logging.debug(f"Request sent to Azure Token URL: {token_url} with data {data}")
+        logging.debug(f"Response from Azure: {response.text}")
+
         if response.status_code == 200:
             return response.json()
         else:
-            response_data = response.json()
-            raise Exception(f"Failed to exchange code for token: {response_data.get('error_description', 'No error description provided')}")
+            error_message = response.json().get('error_description', 'No error description provided')
+            logging.error(f"Failed to exchange code for token: {error_message}")
+            raise Exception(f"Failed to exchange code for token: {error_message}")
     except Exception as e:
+        logging.error(f"Error during token exchange: {str(e)}", exc_info=True)
         raise Exception(f"Error during token exchange: {str(e)}")
 
 

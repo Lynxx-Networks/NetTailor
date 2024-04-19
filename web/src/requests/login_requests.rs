@@ -477,6 +477,8 @@ pub struct AzureLoginValues {
     pub(crate) client_id: String,
     pub(crate) tenant_id: String,
     pub(crate) redirect_uri: String,
+    pub(crate) client_secret: String
+
 }
 
 pub async fn call_azure_login_status(server_name: String) -> Result<AzureLoginValues, Error> {

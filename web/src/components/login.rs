@@ -1,8 +1,9 @@
 use yew::prelude::*;
-use web_sys::{console, window};
+use web_sys::{console, window, UrlSearchParams, Url};
 use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsValue, JsCast};
 use yew_router::history::{BrowserHistory, History};
+use yew::platform::spawn_local;
 use crate::requests::login_requests::{self, call_check_mfa_enabled};
 use crate::requests::login_requests::{ TimeZoneInfo, call_first_login_done, call_setup_timezone_info, call_verify_mfa, call_self_service_login_status, call_reset_password_create_code, ResetCodePayload, ResetForgotPasswordPayload, call_verify_and_reset_password, call_get_time_info, call_verify_key};
 use crate::components::context::{AppState, UIState};
@@ -28,6 +29,36 @@ fn generate_gravatar_url(email: &Option<String>, size: usize) -> String {
     let hash = calculate_gravatar_hash(&email.clone().unwrap());
     format!("https://gravatar.com/avatar/{}?s={}", hash, size)
 }
+
+// fn send_code_to_backend<F>(server_name: String, code: &str, callback: F) 
+// where
+//     F: FnOnce(Result<String, String>) + 'static {
+//     let request_url = format!("{}/api/auth/azure/callback", server_name);
+//     let request_body = serde_json::to_string(&json!({ "code": code })).unwrap();
+
+//     let request = Request::post(&request_url)
+//         .header("Content-Type", "application/json")
+//         .body(request_body);
+
+//     match request {
+//         Ok(req) => {
+//             spawn_local(async move {
+//                 let response = req.send().await;
+//                 match response {
+//                     Ok(resp) => {
+//                         if resp.status() == 200 {
+//                             callback(Ok("session_token".to_string())) // Simulated session token
+//                         } else {
+//                             callback(Err("Failed to authenticate".to_string()))
+//                         }
+//                     }
+//                     Err(_) => callback(Err("Network error".to_string()))
+//                 }
+//             });
+//         },
+//         Err(_) => callback(Err("Failed to create request".to_string()))
+//     }
+// }
 
 #[function_component(Login)]
 pub fn login() -> Html {
@@ -85,6 +116,52 @@ pub fn login() -> Html {
             || ()
         },
     );
+    let azure_history = history.clone();
+    use_effect_with((), move |_| {
+        if let Some(window) = web_sys::window() {
+            let location = window.location();
+            let href = location.href().unwrap_or_default();
+            let url = Url::new(&href).unwrap();
+            let params = UrlSearchParams::new_with_str(&url.search()).unwrap();
+            let server_name = location.origin().unwrap_or_default(); // This should be something like 'http://localhost:8000'
+
+            if let Some(code) = params.get("code") {
+                console::log_1(&JsValue::from(format!("Authorization code received: {}", code)));
+                let fetch_url = format!("{}/api/auth/azure/callback", server_name);
+                let request_body = serde_json::to_string(&serde_json::json!({ "code": code }));
+    
+                match request_body {
+                    Ok(body) => {
+                        let request = gloo_net::http::Request::post(&fetch_url)
+                            .header("Content-Type", "application/json")
+                            .body(body);
+    
+                        match request {
+                            Ok(req) => {
+                                spawn_local(async move {
+                                    let response = req.send().await;
+                                    if response.is_ok() {
+                                        console::log_1(&JsValue::from("User authenticated successfully"));
+                                        azure_history.push("/home");
+                                    } else {
+                                        console::log_1(&JsValue::from("Failed to authenticate with Azure"));
+                                    }
+                                });
+                            }
+                            Err(e) => {
+                                console::log_1(&JsValue::from(format!("Error creating request: {:?}", e)));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        console::log_1(&JsValue::from(format!("Error serializing request body: {:?}", e)));
+                    }
+                }
+            }
+        }
+    
+        || () // Cleanup function if needed
+    });
 
     let effect_azure_login = self_service_enabled.clone();
     use_effect_with(
@@ -96,7 +173,7 @@ pub fn login() -> Html {
                 // Example server_name retrieval, adjust according to your needs
                 let window = web_sys::window().expect("no global `window` exists");
                 let location = window.location();
-                let server_name = location.href().expect("should have a href").trim_end_matches('/').to_string();
+                let server_name = location.origin().unwrap_or_default();
                 console::log_1(&format!("Server Name: {:?}", &server_name).into());
                 match call_azure_login_status(server_name).await {
                     Ok(azure_values) => {
@@ -108,6 +185,7 @@ pub fn login() -> Html {
                         storage.set_item("azure_client_id", &azure_values.client_id).unwrap();
                         storage.set_item("azure_tenant_id", &azure_values.tenant_id).unwrap();
                         storage.set_item("azure_redirect_uri", &azure_values.redirect_uri).unwrap();
+                        storage.set_item("azure_client_secret", &azure_values.client_secret).unwrap();
                         console::log_1(&"Azure auth settings saved to local storage".into());
                     
                         // Enable the Azure login button
@@ -115,7 +193,13 @@ pub fn login() -> Html {
                     }
                     Err(e) => {
                         azure_login_enabled.set(false);
-                        web_sys::console::log_1(&format!("Error fetching Azure login status: {:?}", e).into());
+                        if e.to_string().contains("not configured") {
+                            // Handle not configured state gracefully
+                            console::log_1(&JsValue::from("Azure AD not configured. Skipping Azure login."));
+                        } else {
+                            // Handle other errors more visibly
+                            web_sys::console::log_1(&format!("Error fetching Azure login status: {:?}", e).into());
+                        }
                     }
                 }
             });

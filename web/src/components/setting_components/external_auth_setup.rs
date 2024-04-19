@@ -207,7 +207,7 @@ pub fn external_auth() -> Html {
                 <div class="modal-container relative rounded-lg shadow">
                     <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t">
                         <h3 class="text-xl font-semibold">
-                            {"Create New User"}
+                            {"Setup Azure Auth"}
                         </h3>
                         <button onclick={on_close_modal.clone()} class="end-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white">
                             <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
@@ -228,7 +228,7 @@ pub fn external_auth() -> Html {
                                 <input oninput={on_client_id.clone()} placeholder="Pinepods User" type="text" id="fullname" name="fullname" class="search-bar-input border text-sm rounded-lg block w-full p-2.5" required=true />
                             </div>
                             <div>
-                                <label for="client_secret" class="block mb-2 text-sm font-medium">{"Tenant ID"}</label>
+                                <label for="client_secret" class="block mb-2 text-sm font-medium">{"Client Secret"}</label>
                                 <input oninput={on_client_secret.clone()} placeholder="user@pinepods.online" type="password" id="password" name="password" class="search-bar-input border text-sm rounded-lg block w-full p-2.5" required=true />
 
                             </div>

@@ -24,7 +24,13 @@ def verify_password(cnx, username: str, password: str) -> bool:
     return pwd_context.verify(password, stored_hashed_password)
 
 import jwt
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+from cryptography.hazmat.primitives.asymmetric import rsa
+from jwt.algorithms import RSAAlgorithm
 import requests
+import base64
 
 def fetch_azure_ad_public_keys(tenant_id):
     """ Fetches the public keys from Azure AD's discovery document. """
@@ -34,10 +40,26 @@ def fetch_azure_ad_public_keys(tenant_id):
     jwks = requests.get(jwks_uri).json()
     return jwks
 
+def jwks_to_pem(jwks):
+    """ Converts a JWKS to a PEM format. """
+    for jwk in jwks.get('keys', []):
+        if jwk['kty'] == 'RSA':
+            public_num = rsa.RSAPublicNumbers(
+                e=int.from_bytes(base64.urlsafe_b64decode(jwk['e'] + '=='), 'big'),
+                n=int.from_bytes(base64.urlsafe_b64decode(jwk['n'] + '=='), 'big')
+            )
+            public_key = public_num.public_key(default_backend())
+            pem = public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            return pem
+    raise Exception("Valid RSA public key not found in JWKS.")
+
 def decode_id_token(id_token, tenant_id, client_id):
-    """ Decodes and validates an ID token from Azure AD. """
-    # Fetch the JWKs from Azure AD
+    """ Decodes and validates an ID token from Azure AD using a PEM-formatted public key. """
     jwks = fetch_azure_ad_public_keys(tenant_id)
+    pem = jwks_to_pem(jwks)
 
     # Decode and validate the token
     try:
@@ -52,13 +74,12 @@ def decode_id_token(id_token, tenant_id, client_id):
             'aud': client_id,
             'iss': f"https://login.microsoftonline.com/{tenant_id}/v2.0"
         }
-        # Decode token
-        decoded = jwt.decode(id_token, jwks, algorithms=["RS256"], options=options, audience=validation['aud'], issuer=validation['iss'])
+        # Decode token using the PEM key
+        decoded = jwt.decode(id_token, pem, algorithms=["RS256"], options=options, audience=validation['aud'], issuer=validation['iss'])
         return decoded
     except jwt.ExpiredSignatureError:
         raise Exception("The token has expired.")
-    except jwt.JWTClaimsError as e:
-        raise Exception(f"Claims validation failed: {str(e)}")
+    except jwt.InvalidTokenError as e:
+        raise Exception(f"Token validation failed: {str(e)}")
     except Exception as e:
         raise Exception(f"Token decoding failed: {str(e)}")
-

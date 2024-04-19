@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Header, Body, Path,
 from fastapi.security import APIKeyHeader, HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import PlainTextResponse, JSONResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_404_NOT_FOUND
 from starlette.concurrency import run_in_threadpool
 import smtplib
 from email.mime.text import MIMEText
@@ -1226,7 +1226,13 @@ async def api_get_all_external_auths(is_admin: bool = Depends(check_if_admin), c
 async def api_get_azure_auth(cnx=Depends(get_database_connection)):
     try:
         azure_auth_values = database_functions.functions.get_azure_auth(cnx)
-        return azure_auth_values
+        if azure_auth_values:
+            return azure_auth_values
+        else:
+            return JSONResponse(
+                status_code=HTTP_404_NOT_FOUND,
+                content={"message": "Azure auth settings not configured."}
+            )
     except Exception as e:
         logging.error(f"Failed to fetch Azure authentication settings: {e}", exc_info=True)  # Log the exception with traceback
         raise HTTPException(
@@ -1247,36 +1253,49 @@ async def api_add_user(cnx=Depends(get_database_connection),
                             detail="Your API key is either invalid or does not have correct permission")
 
 
+
 @app.post("/api/auth/azure/callback")
 async def azure_auth_callback(request: Request, cnx=Depends(get_database_connection)):
     try:
         body = await request.json()
         code = body.get('code')
         if not code:
-            raise HTTPException(status_code=400, detail="Authorization code is missing")
+            logging.error("Authorization code is missing in the request.")
+            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="Authorization code is missing")
 
-        token_response = database_functions.functions.exchange_code_for_token(cnx, code)
+        try:
+            token_response = database_functions.functions.exchange_code_for_token(cnx, code)
+        except Exception as exc:
+            logging.error(f"Failed to exchange code for token: {exc}", exc_info=True)
+            raise
+
         access_token = token_response.get('access_token')
-        id_token = token_response.get('id_token') # This will be used to get user info
-        azure_config = database_functions.functions.get_azure_config(cnx)
+        id_token = token_response.get('id_token')  # This will be used to get user info
 
-        # Decode ID token to get user details
-        user_info = database_functions.auth_functions.decode_id_token(id_token, azure_config['tenant_id'], azure_config['client_id'])
+        try:
+            azure_config = database_functions.functions.get_azure_config(cnx)
+        except Exception as exc:
+            logging.error(f"Failed to retrieve Azure config: {exc}", exc_info=True)
+            raise
 
-        # Check if user exists or create new user
-        user = database_functions.functions.get_user_by_email(cnx, user_info['email'])
+        try:
+            user_info = database_functions.auth_functions.decode_id_token(id_token, azure_config['TenantID'], azure_config['ClientID'])
+        except Exception as exc:
+            logging.error(f"Failed to decode ID token: {exc}", exc_info=True)
+            raise
+
+        user = database_functions.functions.get_user_details_email(cnx, user_info['email'])
         if not user:
             user_id = database_functions.functions.add_azure_user(cnx, user_info)
             user = database_functions.functions.get_user_details_id(cnx, user_id)
 
-        # Create session or token for the user
         session_token = database_functions.functions.create_session_for_user(cnx, user['UserID'])
 
         return {"access_token": session_token, "user": user}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+        logging.error(f"Error in Azure callback: {e}", exc_info=True)
+        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 @app.put("/api/data/set_fullname/{user_id}")
 async def api_set_fullname(user_id: int, new_name: str = Query(...), cnx=Depends(get_database_connection),
                            api_key: str = Depends(get_api_key_from_header)):
