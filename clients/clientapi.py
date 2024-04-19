@@ -319,6 +319,19 @@ async def verify_key(cnx=Depends(get_database_connection),
         raise HTTPException(status_code=403,
                             detail="Your credentials appear to be incorrect.")
 
+@app.get("/api/data/verify_session")
+async def verify_session(cnx=Depends(get_database_connection), authorization: Optional[str] = Header(None)):
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # Strip "Bearer " prefix
+        user_id = database_functions.functions.check_saved_session(cnx, token)
+        if user_id:
+            api_key = database_functions.functions.get_api_key_session(cnx, user_id)  # Function to fetch or create an API key for the user
+            return {"status": "success", "api_key": api_key}
+        else:
+            raise HTTPException(status_code=401, detail="Invalid session token")
+    else:
+        raise HTTPException(status_code=400, detail="No session token provided")
+
 
 @app.post("/api/data/clean_expired_sessions/")
 async def api_clean_expired_sessions(cnx=Depends(get_database_connection),
@@ -1286,11 +1299,13 @@ async def azure_auth_callback(request: Request, cnx=Depends(get_database_connect
 
         user = database_functions.functions.get_user_details_email(cnx, user_info['email'])
         if not user:
+            logging.info(f"User {user_info['email']} not found in the database. Adding user...")
             user_id = database_functions.functions.add_azure_user(cnx, user_info)
             user = database_functions.functions.get_user_details_id(cnx, user_id)
 
         session_token = database_functions.functions.create_session_for_user(cnx, user['UserID'])
-
+        logging.info(f"User {user['UserID']} logged in via Azure")
+        logging.info(f"Session token: {session_token}")
         return {"access_token": session_token, "user": user}
 
     except Exception as e:

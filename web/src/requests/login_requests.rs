@@ -2,6 +2,7 @@ use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use wasm_bindgen::JsValue;
 
 use yew_router::history::{BrowserHistory, History};
 use yewdux::Dispatch;
@@ -20,10 +21,16 @@ pub struct LoginRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct LoginServerRequest {
     pub(crate) server_name: String,
-    pub(crate) username: String,
-    pub(crate) password: String,
-    pub(crate) api_key: Option<String>
+    pub(crate) credentials: LoginCredentials,
+    pub(crate) api_key: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum LoginCredentials {
+    Password { username: String, password: String },
+    SessionToken { token: String },
+}
+
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -179,6 +186,75 @@ pub async fn call_get_api_config(server_name: &str, api_key: &str) -> Result<cra
     }
 }
 
+pub async fn login_new_server_session(server_name: String, session_token: String) -> Result<(GetUserDetails, LoginServerRequest, GetApiDetails), anyhow::Error> {   
+    let auth_header = format!("Bearer {}", session_token);
+    let url = format!("{}/api/data/verify_session", server_name);
+
+    // Step 1: Verify Server
+    match verify_nettailor_instance(&server_name).await {
+        Ok(check_data) => {
+            if !check_data.nettailor_instance.unwrap_or(false) {
+                return Err(anyhow::Error::msg("Nettailor instance not found at specified server"));
+            }
+            console::log_1(&"Nettailor instance found".into());
+            // Step 2: Get API key
+            let response = Request::get(&url)
+                .header("Authorization", &auth_header)
+                .send()
+                .await?;
+
+
+            if response.ok() {
+                let json_response = response.json::<serde_json::Value>().await?;
+                console::log_1(&JsValue::from(format!("JSON response: {:?}", json_response)));
+            
+                if let Some(api_key) = json_response.get("api_key").and_then(|k| k.as_str()) {
+                    console::log_1(&JsValue::from(format!("API Key: {}", api_key)));
+                    
+                    // Step 2: Verify the API key
+                    let verify_response = call_verify_key(&server_name, api_key).await?;
+                    if verify_response.status != "success" {
+                        return Err(anyhow::Error::msg("API key verification failed"));
+                    }
+                    console::log_1(&"API key verified".into());
+            
+                    // Step 3: Get user ID
+                    let user_id_response = call_get_user_id(&server_name, api_key).await?;
+                    if user_id_response.status != "success" {
+                        return Err(anyhow::Error::msg("Failed to get user ID"));
+                    }
+            
+                    let login_request = LoginServerRequest {
+                        server_name: server_name.clone(),
+                        credentials: LoginCredentials::SessionToken { token: (session_token.clone()) },
+                        api_key: Some(api_key.to_string()), // Convert &str to String
+                    };
+        
+        
+                    // Step 4: Get user details
+                    let user_details = call_get_user_details(&server_name, &api_key, &user_id_response.retrieved_id.unwrap()).await?;
+                    if user_details.Username.is_none() {
+                        return Err(anyhow::Error::msg("Failed to get user details"));
+                    }
+        
+                    // Step 5: Get server details
+                    let server_details = call_get_api_config(&server_name, &api_key).await?;
+                    Ok((user_details, login_request, server_details))
+                } else {
+                    return Err(anyhow::Error::msg("API key not received or invalid from session validation"));
+                }
+            } else {
+                return Err(anyhow::Error::msg("Failed to authenticate user with session token"));
+            }
+
+        },
+        Err(e) => {
+            // Directly propagate the error from verify_Nettailor_instance
+            return Err(e);
+        }
+    }
+}
+
 pub async fn login_new_server(server_name: String, username: String, password: String) -> Result<(GetUserDetails, LoginServerRequest, GetApiDetails), anyhow::Error> {
     let credentials = STANDARD.encode(format!("{}:{}", username, password).as_bytes());
     let auth_header = format!("Basic {}", credentials);
@@ -216,9 +292,11 @@ pub async fn login_new_server(server_name: String, username: String, password: S
 
             let login_request = LoginServerRequest {
                 server_name: server_name.clone(),
-                username: username.clone(),
-                password: password.clone(),
-                api_key: Some(api_key.clone()), // or None, depending on the context
+                credentials: LoginCredentials::Password {
+                    username: username.clone(),
+                    password: password.clone(),
+                },
+                api_key: Some(api_key.clone()),
             };
 
 

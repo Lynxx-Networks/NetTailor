@@ -1706,6 +1706,27 @@ def get_api_key(cnx, username):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
+    
+def get_api_key_session(cnx, user_id):
+    try:
+        with cnx.cursor() as cursor:
+            # Get the API Key using the fetched UserID, and limit the results to 1
+            query = "SELECT APIKey FROM APIKeys WHERE UserID = %s LIMIT 1"
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchone()
+
+            # Check and return the API key or create a new one if not found
+            if result:
+                print(f"Result: {result}")
+                return result[0]  # Adjust the index if the API key is in a different column
+            else:
+                print("No API key found for the provided user. Creating a new one...")
+                return create_api_key(cnx, user_id)
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return f"An error occurred: {str(e)}"
+
 
 
 def get_api_user(cnx, api_key):
@@ -2162,6 +2183,19 @@ def verify_password(cnx, username: str, password: str) -> bool:
     except VerifyMismatchError:
         # If verification fails, password is incorrect
         return False
+    
+def check_saved_session(cnx, session_value):
+    cursor = cnx.cursor()
+    cursor.execute("SELECT UserID, expire FROM Sessions WHERE value = %s", (session_value,))
+    result = cursor.fetchone()
+    cursor.close()
+
+    if result:
+        user_id, session_expire = result
+        current_time = datetime.datetime.now()
+        if current_time < session_expire:
+            return user_id
+    return None
 
 
 def verify_reset_code(cnx, user_email, reset_code):
