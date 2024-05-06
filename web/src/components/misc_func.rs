@@ -1,5 +1,9 @@
-use web_sys::{window, HtmlElement};
+use web_sys::{window, HtmlElement, HtmlInputElement, InputEvent};
 use wasm_bindgen::JsCast;
+use std::rc::Rc;
+use yew::prelude::*;
+use std::cell::RefCell;
+use std::cell::Cell;
 
 #[allow(dead_code)]
 pub fn change_theme(theme: &str) {
@@ -74,6 +78,10 @@ pub fn generate_config(
     vlan_definitions: &str,
     class_map_definitions: &str,
     policy_map_definitions: &str,
+    client_name: &str,
+    device_type: &str,
+    service_type: &str,
+    devive_model: &str,
 ) -> String {
     format!("
 version {}\n\
