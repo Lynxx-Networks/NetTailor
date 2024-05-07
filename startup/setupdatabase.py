@@ -65,6 +65,21 @@ try:
             GpodderToken TEXT DEFAULT ''
         )
     """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Configurations (
+            ConfigID INT AUTO_INCREMENT PRIMARY KEY,
+            UserID INT,
+            DeviceHostname VARCHAR(255),
+            ConfigName VARCHAR(255),
+            StorageLocation ENUM('local', 'cloud'),
+            FilePath VARCHAR(255),
+            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (UserID) REFERENCES Users(UserID)
+        )
+    """)
+
 
     logging.info("Database tables created or verified successfully.")
 

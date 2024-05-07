@@ -5,3 +5,4 @@ pub(crate) mod search_pods;
 
 pub(crate) mod stat_reqs;
 pub(crate) mod setting_reqs;
+pub(crate) mod net_requests;

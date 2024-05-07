@@ -1,3 +1,6 @@
+use std::default;
+
+use gloo::history::Location;
 use yew::prelude::*;
 use yewdux::use_store;
 use super::app_drawer::App_drawer;
@@ -8,6 +11,9 @@ use crate::components::misc_func::generate_config;
 use web_sys::{HtmlSelectElement, HtmlInputElement};
 use crate::components::settings::AccordionItem;
 use crate::components::settings::AccordionItemPosition;
+use web_sys::HtmlTextAreaElement;
+use wasm_bindgen_futures::spawn_local;
+use crate::requests::net_requests::{send_config_to_server, add_config_db, DeviceConfig};
 
 #[function_component(CreateConfig)]
 pub fn create_config() -> Html {
@@ -20,8 +26,13 @@ pub fn create_config() -> Html {
     let (audio_state, audio_dispatch) = use_store::<UIState>();
     let error_message = audio_state.error_message.clone();
     let info_message = audio_state.info_message.clone();
+    let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
+    let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
+    let cloud_storage = state.use_cloud_storage.clone();
+    let _user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone());
     let loading = use_state(|| true);
- 
+
+
     let os_version = use_state(|| String::from(""));
     let hostname = use_state(|| String::from(""));
     let tacacs_server = use_state(|| String::from(""));
@@ -42,9 +53,59 @@ pub fn create_config() -> Html {
     let device_type = use_state(|| String::from(""));
     let service_type = use_state(|| String::from(""));
     let device_model = use_state(|| String::from(""));
-
-
+    let switch_config_block = use_state(|| String::from(""));
+    let client_domain = use_state(|| String::from(""));
+    let device_ip = use_state(|| String::from(""));
     let configuration = use_state(|| String::new());
+    let default_admin = use_state(|| String::from(""));
+    let encrypted_enable_pass = use_state(|| String::from(""));
+    let interface_definitions = use_state(|| String::from(""));
+    let router_definitions = use_state(|| String::from(""));
+    let ip_routes = use_state(|| String::from(""));
+    let custom_snmp_config = use_state(|| String::from(""));
+    let location = use_state(|| String::from(""));
+    let snmp_community_string = use_state(|| String::from(""));
+    let tacacs_key = use_state(|| String::from(""));
+    let dns_server1 = use_state(|| String::from(""));
+    let dns_server2 = use_state(|| String::from(""));
+
+    let generate_config_click = {
+        let server_name = server_name.clone(); // URL to your backend server
+        let api_key = api_key.clone(); // API key for your backend server
+        let use_cloud_storage = cloud_storage.clone(); // State that determines whether to use cloud or local storage
+        let call_config = (*configuration).clone();
+        let call_hostname = (*hostname).clone();
+        let call_location = (*location).clone();
+        Callback::from(move |_: MouseEvent| {
+            let server_name = server_name.clone();
+            let server_name = server_name.clone();
+            let use_cloud_storage = use_cloud_storage.clone();
+    
+            // Example device config, replace this with actual data collection logic
+            let device_config = DeviceConfig {
+                hostname: call_hostname.clone(),
+                config: call_config.clone(),
+                location: call_location.clone(), // This could be dynamically determined based on `use_cloud_storage`
+            };
+    
+            let future = async move {
+                match add_config_db(&server_name.clone().unwrap(), &device_config).await {
+                    Ok(_) => {
+                        match send_config_to_server(&server_name.unwrap(), &device_config, use_cloud_storage.unwrap()).await {
+                            Ok(message) => web_sys::console::log_1(&format!("Success: {}", message).into()),
+                            Err(e) => web_sys::console::log_1(&format!("Error sending config to server: {}", e).into()),
+                        }
+                    },
+                    Err(e) => {
+                        web_sys::console::log_1(&format!("Error adding config to DB: {}", e).into());
+                    }
+                }
+            };
+    
+            spawn_local(future);
+        })
+    };
+
 
     #[derive(PartialEq, Clone)]
     struct ConfigDependencies {
@@ -68,6 +129,20 @@ pub fn create_config() -> Html {
         device_type: String,
         service_type: String,
         device_model: String,
+        switch_config_block: String,
+        client_domain: String,
+        device_ip: String,
+        default_admin: String,
+        encrypted_enable_pass: String,
+        interface_definitions: String,
+        router_definitions: String,
+        ip_routes: String,
+        custom_snmp_config: String,
+        location: String,
+        snmp_community_string: String,
+        tacacs_key: String,
+        dns_server1: String,
+        dns_server2: String,
     }
 
     let dependencies = ConfigDependencies {
@@ -91,6 +166,21 @@ pub fn create_config() -> Html {
         device_type: (*device_type).clone(),
         service_type: (*service_type).clone(),
         device_model: (*device_model).clone(),
+        switch_config_block: (*switch_config_block).clone(),
+        client_domain: (*client_domain).clone(),
+        device_ip: (*device_ip).clone(),
+        default_admin: (*default_admin).clone(),
+        encrypted_enable_pass: (*encrypted_enable_pass).clone(),
+        interface_definitions: (*interface_definitions).clone(),
+        router_definitions: (*router_definitions).clone(),
+        ip_routes: (*ip_routes).clone(),
+        custom_snmp_config: (*custom_snmp_config).clone(),
+        location: (*location).clone(),
+        snmp_community_string: (*snmp_community_string).clone(),
+        tacacs_key: (*tacacs_key).clone(),
+        dns_server1: (*dns_server1).clone(),
+        dns_server2: (*dns_server2).clone(),
+
     };
 
     let effect_configuration = configuration.clone();
@@ -117,6 +207,20 @@ pub fn create_config() -> Html {
             &deps.device_type,
             &deps.service_type,
             &deps.device_model,
+            &deps.client_domain,
+            &deps.device_ip,
+            &deps.default_admin,
+            &deps.encrypted_enable_pass,
+            &deps.interface_definitions,
+            &deps.router_definitions,
+            &deps.ip_routes,
+            &deps.custom_snmp_config,
+            &deps.location,
+            &deps.snmp_community_string,
+            &deps.tacacs_key,
+            &deps.dns_server1,
+            &deps.dns_server2,
+
         );
 
         effect_configuration.set(config);
@@ -144,14 +248,140 @@ pub fn create_config() -> Html {
         </div>
     };
 
-    let hostname_block = html! {
+    let interface_definitions_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"Tacacs Server:"}</label>
+                <label style="margin-right: 10px;">{"Interface Definitions:"}</label>
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Tacacs Server"
+                    placeholder="Interface Definitions"
+                    value={(*interface_definitions).clone()}
+                    oninput={{
+                        let interface_definitions = interface_definitions.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            interface_definitions.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let client_domain_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Client Domain:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Client Domain"
+                    value={(*client_domain).clone()}
+                    oninput={{
+                        let client_domain = client_domain.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            client_domain.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+    
+    let default_admin_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Default Admin:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Default Admin"
+                    value={(*default_admin).clone()}
+                    oninput={{
+                        let default_admin = default_admin.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            default_admin.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let encrypted_enable_pass_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Encrypted Enable Pass:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Encrypted Enable Pass"
+                    value={(*encrypted_enable_pass).clone()}
+                    oninput={{
+                        let encrypted_enable_pass = encrypted_enable_pass.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            encrypted_enable_pass.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let device_ip_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Device IP:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Device IP"
+                    value={(*device_ip).clone()}
+                    oninput={{
+                        let device_ip = device_ip.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            device_ip.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let ise_server_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"ISE Server:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="ISE Server"
+                    value={(*ise_server).clone()}
+                    oninput={{
+                        let ise_server = ise_server.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            ise_server.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let hostname_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Hostname:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Hostname"
                     value={(*hostname).clone()}
                     oninput={{
                         let hostname = hostname.clone();
@@ -397,6 +627,152 @@ pub fn create_config() -> Html {
         </div>
     };
 
+    let ip_routes_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"IP Routes:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="IP Routes"
+                    value={(*ip_routes).clone()}
+                    oninput={{
+                        let ip_routes = ip_routes.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            ip_routes.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let custom_snmp_config_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Custom SNMP Config:"}</label>
+                <textarea
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Custom SNMP Config"
+                    value={(*custom_snmp_config).clone()}
+                    oninput={{
+                        let custom_snmp_config = custom_snmp_config.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let textarea: HtmlTextAreaElement = e.target_unchecked_into();
+                            custom_snmp_config.set(textarea.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let location_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Location:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Location"
+                    value={(*location).clone()}
+                    oninput={{
+                        let location = location.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            location.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let snmp_community_string_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"SNMP Community String:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="SNMP Community String"
+                    value={(*snmp_community_string).clone()}
+                    oninput={{
+                        let snmp_community_string = snmp_community_string.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            snmp_community_string.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let tacacs_key_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"Tacacs Key:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="Tacacs Key"
+                    value={(*tacacs_key).clone()}
+                    oninput={{
+                        let tacacs_key = tacacs_key.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            tacacs_key.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let dns_server1_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"DNS Server 1:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="DNS Server 1"
+                    value={(*dns_server1).clone()}
+                    oninput={{
+                        let dns_server1 = dns_server1.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            dns_server1.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
+    let dns_server2_block = html! {
+        <div class="config-form">
+            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
+                <label style="margin-right: 10px;">{"DNS Server 2:"}</label>
+                <input
+                    type="text"
+                    class="email-input border p-2 ml-2 rounded"
+                    placeholder="DNS Server 2"
+                    value={(*dns_server2).clone()}
+                    oninput={{
+                        let dns_server2 = dns_server2.clone();
+                        Callback::from(move |e: InputEvent| {
+                            let input: HtmlInputElement = e.target_unchecked_into();
+                            dns_server2.set(input.value());
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    };
+
     let vlan_definitions_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
@@ -418,47 +794,6 @@ pub fn create_config() -> Html {
         </div>
     };
 
-    let class_map_definitions_block = html! {
-        <div class="config-form">
-            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"Class Map Definitions:"}</label>
-                <input
-                    type="text"
-                    class="email-input border p-2 ml-2 rounded"
-                    placeholder="Class Map Definitions"
-                    value={(*class_map_definitions).clone()}
-                    oninput={{
-                        let class_map_definitions = class_map_definitions.clone();
-                        Callback::from(move |e: InputEvent| {
-                            let input: HtmlInputElement = e.target_unchecked_into();
-                            class_map_definitions.set(input.value());
-                        })
-                    }}
-                />
-            </div>
-        </div>
-    };
-
-    let policy_map_definitions_block = html! {
-        <div class="config-form">
-            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"Policy Map Definitions:"}</label>
-                <input
-                    type="text"
-                    class="email-input border p-2 ml-2 rounded"
-                    placeholder="Policy Map Definitions"
-                    value={(*policy_map_definitions).clone()}
-                    oninput={{
-                        let policy_map_definitions = policy_map_definitions.clone();
-                        Callback::from(move |e: InputEvent| {
-                            let input: HtmlInputElement = e.target_unchecked_into();
-                            policy_map_definitions.set(input.value());
-                        })
-                    }}
-                />
-            </div>
-        </div>
-    };
 
     let on_client_name_change = {
         let client_name = client_name.clone();
@@ -629,7 +964,14 @@ pub fn create_config() -> Html {
                                             <div class="input-field">
                                                 {auvik_collector_block}
                                                 {client_name_block}
+                                                {client_domain_block}
+                                                {location_block}
                                                 {tacacs_server_block}
+                                                {tacacs_key_block}
+                                                {custom_snmp_config_block}
+                                                {snmp_community_string_block}
+
+                                                {ise_server_block}
                                             </div>
                                         </div>
                                         }} position={AccordionItemPosition::First}/>
@@ -657,10 +999,15 @@ pub fn create_config() -> Html {
                                     <AccordionItem title="Device Configuration" content={html!{ 
                                         <div class="config-form">                                     
                                             {hostname_block}
+                                            {device_ip_block}
+                                            {dns_server1_block}
+                                            {dns_server2_block}
+                                            {default_admin_block}
+                                            {encrypted_enable_pass_block}
+                                            {encrypted_user_pass_block}
                                             {timezone_block}
-                                            {vtp_domain_block}
                                             {vlan_range_block}
-                                            {os_version_block}
+                                            {ip_routes_block}
                                         </div>
                                         }} position={AccordionItemPosition::Middle}/>
                                 </div>
@@ -676,9 +1023,9 @@ pub fn create_config() -> Html {
                                 </div>
                             </div>
                             </div>
-                        // <div>
-                        //     <button onclick={generate_config_click}>{"Generate Config"}</button>
-                        // </div>
+                        <div>
+                            <button onclick={generate_config_click}>{"Generate Config"}</button>
+                        </div>
 
                         </div>
                     // </div>

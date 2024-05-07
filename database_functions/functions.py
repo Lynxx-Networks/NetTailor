@@ -3070,3 +3070,18 @@ def restore_server(cnx, database_pass, server_restore_data):
 
     return "Restoration completed successfully!"
 
+def add_config_to_db(cnx, data):
+    # This function inserts the new configuration into the database
+    try:
+        query = """
+        INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation, FilePath)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor = cnx.cursor()
+        cursor.execute(query, (data.user_id, data.device_hostname, data.config_name, data.storage_location, data.file_path))
+        cnx.commit()
+        return True
+    except Exception as e:
+        cnx.rollback()
+        logging.error(f"Error adding configuration to DB: {str(e)}")
+        return False
