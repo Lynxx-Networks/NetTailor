@@ -5,6 +5,7 @@ export DB_PASSWORD=$DB_PASSWORD
 export DB_HOST=$DB_HOST
 export DB_NAME=$DB_NAME
 export DB_PORT=$DB_PORT
+export USE_CLOUD_STORAGE=$USE_CLOUD_STORAGE
 export FULLNAME=${FULLNAME:-'nettailor Admin'}
 export USERNAME=${USERNAME:-'pine-admin'}
 export EMAIL=${EMAIL:-'admin@nettailor.online'}

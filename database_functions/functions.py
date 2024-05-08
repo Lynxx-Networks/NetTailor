@@ -3070,18 +3070,81 @@ def restore_server(cnx, database_pass, server_restore_data):
 
     return "Restoration completed successfully!"
 
-def add_config_to_db(cnx, data):
-    # This function inserts the new configuration into the database
+def generate_access_key(length=32):
+    import secrets
+    characters = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+def add_config_to_db(db, user_id, device_hostname, config_name, storage_location, file_path, url):
+    from datetime import datetime, timedelta, timezone
+
+    query = """
+    INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation, FilePath)
+    VALUES (%s, %s, %s, %s, %s)
+    RETURNING ConfigID
+    """
+    cursor = db.cursor()
     try:
-        query = """
-        INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation, FilePath)
-        VALUES (%s, %s, %s, %s, %s)
+        cursor.execute(query, (user_id, device_hostname, config_name, storage_location, file_path))
+        config_id = cursor.fetchone()[0]
+
+        # Generate access key and link
+        access_key = generate_access_key()
+        link = f"{url}/api/data/{config_id}/{access_key}"
+        expires_at = datetime.now(timezone.utc) + timedelta(weeks=1)
+
+        # Insert the shared configuration details
+        query_insert_shared = """
+        INSERT INTO SharedConfigs (ConfigID, Link, AccessKey, ExpiresAt)
+        VALUES (%s, %s, %s, %s)
         """
-        cursor = cnx.cursor()
-        cursor.execute(query, (data.user_id, data.device_hostname, data.config_name, data.storage_location, data.file_path))
-        cnx.commit()
-        return True
+        cursor.execute(query_insert_shared, (config_id, link, access_key, expires_at))
+
+        db.commit()
+        return config_id, link, access_key
     except Exception as e:
-        cnx.rollback()
-        logging.error(f"Error adding configuration to DB: {str(e)}")
-        return False
+        db.rollback()
+        print(f"Failed to add configuration: {e}")
+        return None, None, None
+    finally:
+        cursor.close()
+
+def get_shared_configuration(db, config_id, access_key):
+    from datetime import datetime, timezone
+    from dateutil import parser 
+    query = """
+    SELECT c.FilePath, s.ExpiresAt
+    FROM Configurations c
+    JOIN SharedConfigs s ON c.ConfigID = s.ConfigID
+    WHERE s.ConfigID = %s AND s.AccessKey = %s
+    LIMIT 1
+    """
+    cursor = db.cursor()
+    try:
+        cursor.execute(query, (config_id, access_key))
+        config_info = cursor.fetchone()
+
+        if not config_info:
+            return None, "Shared configuration not found or expired"
+
+        file_path, expires_at = config_info
+
+        # Parse expires_at if it's a string
+        if isinstance(expires_at, str):
+            expires_at = parser.parse(expires_at)
+
+        # Ensure expires_at is timezone aware
+        if expires_at.tzinfo is None or expires_at.tzinfo.utcoffset(expires_at) is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        current_utc_time = datetime.now(timezone.utc)
+        print(f"Current UTC Time: {current_utc_time}, Expiration Time: {expires_at}")
+
+        if current_utc_time > expires_at:
+            return None, "The shared configuration has expired"
+
+        return file_path, None
+    except Exception as e:
+        return None, f"Database query error: {str(e)}"
+    finally:
+        cursor.close()

@@ -80,6 +80,18 @@ try:
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS SharedConfigs (
+            SharedID INT AUTO_INCREMENT PRIMARY KEY,
+            ConfigID INT,
+            Link VARCHAR(255) UNIQUE,
+            AccessKey VARCHAR(64),
+            ExpiresAt DATETIME,
+            FOREIGN KEY (ConfigID) REFERENCES Configurations(ConfigID)
+        );
+    """)
+
+
 
     logging.info("Database tables created or verified successfully.")
 

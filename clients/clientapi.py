@@ -1465,35 +1465,111 @@ class DeviceConfig(BaseModel):
     user_id: int
     device_hostname: str
     config_name: str
-    storage_location: str
-    file_path: str
+    url: str
 
 @app.post("/api/data/add_config")
 async def add_config(data: DeviceConfig, cnx=Depends(get_database_connection),
                      api_key: str = Depends(get_api_key_from_header)):
     # Validate API Key
-    is_valid_key = await verify_api_key(api_key, cnx)
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+    logger.error(f"Adding config for user {data.user_id}")
+
+    # Check user permission
+    user_id_from_api_key = database_functions.functions.id_from_api_key(cnx, api_key)
+    if data.user_id != user_id_from_api_key:
+        raise HTTPException(status_code=403, detail="Unauthorized access")
+    logger.error(f"User ID from API Key: {user_id_from_api_key}")
+
+    # Determine the storage location based on environment settings
+    use_cloud_storage = os.getenv("USE_CLOUD_STORAGE", "False") == "True"
+    storage_location = "cloud" if use_cloud_storage else "local"
+    file_path = "/opt/nettailor/configs" if not use_cloud_storage else "path-for-cloud-storage"
+    logger.error(f"Storage location: {storage_location}, File path: {file_path}")
+
+    # Call the database function to add the config
+    # Add config and get shared details
+    config_id, shared_link, access_key = database_functions.functions.add_config_to_db(
+        cnx, data.user_id, data.device_hostname, data.config_name, storage_location, file_path, data.url
+    )
+    if config_id:
+        return {
+            "success": True,
+            "message": "Configuration added successfully",
+            "config_id": config_id,
+            "storage_location": storage_location,
+            "shared_link": shared_link,
+            "access_key": access_key,
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Failed to add configuration to the database")
+
+class UploadLocalConfig(BaseModel):
+    config_content: str
+    
+@app.post("/api/data/upload_local/{config_id}")
+async def upload_local(
+    config_id: int,
+    data: UploadLocalConfig, 
+    cnx=Depends(get_database_connection), 
+    api_key: str = Depends(get_api_key_from_header)
+):
+    # Validate the API Key
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
     if not is_valid_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
 
-    # Check user permission
-    user_id_from_api_key = await get_user_id_from_api_key(api_key, cnx)
-    if data.user_id != user_id_from_api_key:
+    # Fetch configuration information
+    query = "SELECT UserID, FilePath FROM Configurations WHERE ConfigID = %s LIMIT 1"
+    cursor = cnx.cursor()
+    cursor.execute(query, (config_id,))
+    config_info = cursor.fetchone()
+
+    if not config_info:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+
+    user_id, file_path = config_info
+
+    # Ensure the user has permission to upload this config
+    user_id_from_api_key = database_functions.functions.id_from_api_key(cnx, api_key)
+    if user_id != user_id_from_api_key:
         raise HTTPException(status_code=403, detail="Unauthorized access")
 
-    # Insert the configuration into the database
+    # Create the full local path if it doesn't exist
+    os.makedirs(file_path, exist_ok=True)
+
+    # Write the configuration content to a file
+    file_name = f"{config_id}.conf"  # Adjust the naming convention as necessary
+    file_full_path = os.path.join(file_path, file_name)
+
     try:
-        query = """
-        INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation, FilePath)
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        cursor = cnx.cursor()
-        cursor.execute(query, (data.user_id, data.device_hostname, data.config_name, data.storage_location, data.file_path))
-        cnx.commit()
-        return {"success": True, "message": "Configuration added successfully"}
+        with open(file_full_path, "w") as file:
+            file.write(data.config_content)
     except Exception as e:
-        cnx.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
+
+    return {"success": True, "message": "Configuration uploaded locally"}
+
+@app.get("/api/data/{config_id}/{access_key}")
+async def get_shared_config(config_id: int, access_key: str, cnx=Depends(get_database_connection)):
+    # Retrieve the shared configuration path from the database
+    file_path, error = database_functions.functions.get_shared_configuration(cnx, config_id, access_key)
+
+    if error:
+        status_code = 404 if "not found" in error or "expired" in error else 500
+        raise HTTPException(status_code=status_code, detail=error)
+
+    # Read and return the configuration content
+    try:
+        with open(file_path, 'r') as file:
+            config_content = file.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
+
+    return {"config_content": config_content}
+
+
 
 async def async_tasks():
     # Start cleanup task

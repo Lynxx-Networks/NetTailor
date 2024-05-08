@@ -3,6 +3,7 @@ use std::default;
 use gloo::history::Location;
 use yew::prelude::*;
 use yewdux::use_store;
+use crate::components::gen_funcs::get_base_url;
 use super::app_drawer::App_drawer;
 use super::search_nav::Search_nav;
 use yew_router::history::BrowserHistory;
@@ -13,7 +14,7 @@ use crate::components::settings::AccordionItem;
 use crate::components::settings::AccordionItemPosition;
 use web_sys::HtmlTextAreaElement;
 use wasm_bindgen_futures::spawn_local;
-use crate::requests::net_requests::{send_config_to_server, add_config_db, DeviceConfig};
+use crate::requests::net_requests::{DeviceInfo, send_config_to_server, add_config_db, DeviceConfig};
 
 #[function_component(CreateConfig)]
 pub fn create_config() -> Html {
@@ -70,6 +71,8 @@ pub fn create_config() -> Html {
     let dns_server2 = use_state(|| String::from(""));
 
     let generate_config_click = {
+        let user_id = _user_id.clone();
+        web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
         let server_name = server_name.clone(); // URL to your backend server
         let api_key = api_key.clone(); // API key for your backend server
         let use_cloud_storage = cloud_storage.clone(); // State that determines whether to use cloud or local storage
@@ -77,23 +80,57 @@ pub fn create_config() -> Html {
         let call_hostname = (*hostname).clone();
         let call_location = (*location).clone();
         Callback::from(move |_: MouseEvent| {
+            web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
+            let api_key = api_key.clone();
             let server_name = server_name.clone();
             let server_name = server_name.clone();
             let use_cloud_storage = use_cloud_storage.clone();
-    
+            let mut base_url = String::new();
+            match get_base_url() {
+                Ok(url) => {
+                    base_url = url;
+                }
+                Err(e) => {
+                    web_sys::console::log_1(&format!("Error getting base URL: {}", e).into());
+                }
+            }
             // Example device config, replace this with actual data collection logic
             let device_config = DeviceConfig {
+                user_id: user_id.clone().unwrap(),
                 hostname: call_hostname.clone(),
                 config: call_config.clone(),
-                location: call_location.clone(), // This could be dynamically determined based on `use_cloud_storage`
+            };
+
+
+
+            let device_info = DeviceInfo {
+                user_id: user_id.clone().unwrap(),
+                device_hostname: call_hostname.clone(),
+                config_name: call_hostname.clone(),
+                url: base_url.clone(),
             };
     
             let future = async move {
-                match add_config_db(&server_name.clone().unwrap(), &device_config).await {
-                    Ok(_) => {
-                        match send_config_to_server(&server_name.unwrap(), &device_config, use_cloud_storage.unwrap()).await {
-                            Ok(message) => web_sys::console::log_1(&format!("Success: {}", message).into()),
-                            Err(e) => web_sys::console::log_1(&format!("Error sending config to server: {}", e).into()),
+                match add_config_db(&server_name.clone().unwrap(), &device_info, &api_key.clone().unwrap(), &user_id.clone().unwrap()).await {
+                    Ok(config_response) => {
+                        web_sys::console::log_1(&format!("accesslink here: {}", config_response.shared_link).into());
+                        let result = send_config_to_server(
+                            &server_name.unwrap(),
+                            config_response.config_id,
+                            &device_config,
+                            &config_response.storage_location,
+                            &api_key.unwrap(),
+                            &user_id.clone().unwrap(),
+                        )
+                        .await;
+        
+                        match result {
+                            Ok(message) => {
+                                web_sys::console::log_1(&format!("Success: {}", message).into());
+                            }
+                            Err(e) => {
+                                web_sys::console::log_1(&format!("Error sending config to server: {}", e).into());
+                            }
                         }
                     },
                     Err(e) => {
@@ -1024,7 +1061,7 @@ pub fn create_config() -> Html {
                             </div>
                             </div>
                         <div>
-                            <button onclick={generate_config_click}>{"Generate Config"}</button>
+                            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mt-3 rounded" onclick={generate_config_click}>{"Generate Config"}</button>
                         </div>
 
                         </div>
