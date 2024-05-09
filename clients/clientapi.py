@@ -1485,7 +1485,7 @@ async def add_config(data: DeviceConfig, cnx=Depends(get_database_connection),
     # Determine the storage location based on environment settings
     use_cloud_storage = os.getenv("USE_CLOUD_STORAGE", "False") == "True"
     storage_location = "cloud" if use_cloud_storage else "local"
-    file_path = "/opt/nettailor/configs" if not use_cloud_storage else "path-for-cloud-storage"
+    file_path = f"/opt/nettailor/configs" if not use_cloud_storage else "path-for-cloud-storage"
     logger.error(f"Storage location: {storage_location}, File path: {file_path}")
 
     # Call the database function to add the config
@@ -1536,15 +1536,11 @@ async def upload_local(
     if user_id != user_id_from_api_key:
         raise HTTPException(status_code=403, detail="Unauthorized access")
 
-    # Create the full local path if it doesn't exist
-    os.makedirs(file_path, exist_ok=True)
-
-    # Write the configuration content to a file
-    file_name = f"{config_id}.conf"  # Adjust the naming convention as necessary
-    file_full_path = os.path.join(file_path, file_name)
+    # Ensure the directory for file_path exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)  # Ensure the directory exists
 
     try:
-        with open(file_full_path, "w") as file:
+        with open(file_path, "w") as file:
             file.write(data.config_content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
@@ -1552,22 +1548,18 @@ async def upload_local(
     return {"success": True, "message": "Configuration uploaded locally"}
 
 @app.get("/api/data/{config_id}/{access_key}")
-async def get_shared_config(config_id: int, access_key: str, cnx=Depends(get_database_connection)):
-    # Retrieve the shared configuration path from the database
+async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_database_connection)):
     file_path, error = database_functions.functions.get_shared_configuration(cnx, config_id, access_key)
-
     if error:
-        status_code = 404 if "not found" in error or "expired" in error else 500
-        raise HTTPException(status_code=status_code, detail=error)
+        raise HTTPException(status_code=404, detail=f"Failed to retrieve config: {error}")
 
-    # Read and return the configuration content
     try:
         with open(file_path, 'r') as file:
             config_content = file.read()
-    except Exception as e:
+        return Response(content=config_content, media_type="text/plain")
+    except IOError as e:
         raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
 
-    return {"config_content": config_content}
 
 
 

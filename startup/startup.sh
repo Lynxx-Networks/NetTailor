@@ -115,6 +115,9 @@ openssl req -x509 -nodes -newkey rsa:4096 -keyout /opt/nettailor/certs/key.pem -
 echo "127.0.0.1 $HOSTNAME" >> /etc/hosts
 echo "Hosts file written and can be seen below:"
 cat /etc/hosts
+# Setting up SSH
+cp /nettailor/startup/sshd_config /etc/ssh/sshd_config
+ssh-keygen -A
 
 # Database Setup
 if [[ $DB_TYPE == "postgresql" ]]; then

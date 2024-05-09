@@ -3075,18 +3075,43 @@ def generate_access_key(length=32):
     characters = string.ascii_letters + string.digits
     return ''.join(secrets.choice(characters) for _ in range(length))
 
+
+def create_scp_user(username, password, expiration_date):
+    # Create user with home directory
+    subprocess.run(["adduser", "-D", "-h", f"/home/{username}", username], check=True)
+    # Set user password
+    subprocess.run(f"echo '{username}:{password}' | chpasswd", shell=True, check=True)
+    # Alpine doesn't support chage, handle expiration manually if necessary
+
+def delete_scp_user(username):
+    import subprocess
+    subprocess.run(["userdel", "-r", username], check=True)
+
 def add_config_to_db(db, user_id, device_hostname, config_name, storage_location, file_path, url):
     from datetime import datetime, timedelta, timezone
 
-    query = """
-    INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation, FilePath)
-    VALUES (%s, %s, %s, %s, %s)
-    RETURNING ConfigID
-    """
     cursor = db.cursor()
     try:
-        cursor.execute(query, (user_id, device_hostname, config_name, storage_location, file_path))
+        # Insert basic configuration data
+        query = """
+        INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation)
+        VALUES (%s, %s, %s, %s)
+        RETURNING ConfigID
+        """
+        cursor.execute(query, (user_id, device_hostname, config_name, storage_location))
         config_id = cursor.fetchone()[0]
+
+        # Append the config_id to file path to create unique filename
+        file_name = f"{config_id}.conf"
+        full_file_path = os.path.join(file_path, file_name)
+
+        # Update FilePath with the full file path
+        update_query = """
+        UPDATE Configurations
+        SET FilePath = %s
+        WHERE ConfigID = %s
+        """
+        cursor.execute(update_query, (full_file_path, config_id))
 
         # Generate access key and link
         access_key = generate_access_key()
@@ -3101,6 +3126,7 @@ def add_config_to_db(db, user_id, device_hostname, config_name, storage_location
         cursor.execute(query_insert_shared, (config_id, link, access_key, expires_at))
 
         db.commit()
+        create_scp_user(str(config_id), access_key, expires_at)
         return config_id, link, access_key
     except Exception as e:
         db.rollback()
@@ -3108,6 +3134,7 @@ def add_config_to_db(db, user_id, device_hostname, config_name, storage_location
         return None, None, None
     finally:
         cursor.close()
+
 
 def get_shared_configuration(db, config_id, access_key):
     from datetime import datetime, timezone
