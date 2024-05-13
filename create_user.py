@@ -16,7 +16,7 @@ if __name__ == "__main__":
 	if len(sys.argv) > 6:
 		fullname = sys.argv[6]
 	else:
-		fullname = "Pinepods Admin"
+		fullname = "Nettailor Admin"
 
 	if len(sys.argv) > 7:
 		username = sys.argv[7]
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 	if len(sys.argv) > 8:
 		email = sys.argv[8]
 	else:
-		email = "admin@pinepods.online"
+		email = "admin@nettailor.online"
 
 	if len(sys.argv) > 9:
 		password = sys.argv[9]

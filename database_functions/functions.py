@@ -18,8 +18,6 @@ from requests.exceptions import RequestException
 # # Get the application root directory from the environment variable
 # app_root = os.environ.get('APP_ROOT')
 sys.path.append('/nettailor/')
-# Import the functions directly from app_functions.py located in the database_functions directory
-from database_functions.app_functions import sync_subscription_change, get_podcast_values
 
 def get_web_key(cnx):
     cursor = cnx.cursor()
@@ -531,33 +529,6 @@ def set_isadmin(cnx, user_id, isadmin):
 def delete_user(cnx, user_id):
     cursor = cnx.cursor()
 
-    # Delete user from UserEpisodeHistory table
-    try:
-        query = "DELETE FROM UserEpisodeHistory WHERE UserID = %s"
-        cursor.execute(query, (user_id,))
-    except:
-        pass
-
-    # Delete user from DownloadedEpisodes table
-    try:
-        query = "DELETE FROM DownloadedEpisodes WHERE UserID = %s"
-        cursor.execute(query, (user_id,))
-    except:
-        pass
-
-    # Delete user from EpisodeQueue table
-    try:
-        query = "DELETE FROM EpisodeQueue WHERE UserID = %s"
-        cursor.execute(query, (user_id,))
-    except:
-        pass
-
-    # Delete user from Podcasts table
-    try:
-        query = "DELETE FROM Podcasts WHERE UserID = %s"
-        cursor.execute(query, (user_id,))
-    except:
-        pass
 
     # Delete user from UserSettings table
     try:
@@ -1229,30 +1200,6 @@ def first_login_done(database_type, cnx, user_id):
         return False
 
 import time
-
-def backup_user(database_type, cnx, user_id):
-    if database_type == "postgresql":
-        cursor = cnx.cursor(cursor_factory=RealDictCursor)
-    else:  # Assuming MariaDB/MySQL if not PostgreSQL
-        cursor = cnx.cursor(dictionary=True)
-
-    # Fetch podcasts for the user
-    cursor.execute(
-        "SELECT PodcastName, FeedURL FROM Podcasts WHERE UserID = %s", (user_id,)
-    )
-    podcasts = cursor.fetchall()
-    cursor.close()
-
-    # Construct the OPML content
-    opml_content = '<?xml version="1.0" encoding="UTF-8"?>\n<opml version="2.0">\n  <head>\n    <title>Podcast Subscriptions</title>\n  </head>\n  <body>\n'
-
-    for podcast in podcasts:
-        opml_content += f'    <outline text="{podcast["PodcastName"]}" title="{podcast["PodcastName"]}" type="rss" xmlUrl="{podcast["FeedURL"]}" />\n'
-
-    opml_content += '  </body>\n</opml>'
-
-    return opml_content
-
 
 def backup_server(cnx, database_pass):
     # Replace with your database and authentication details
