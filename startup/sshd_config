@@ -1,0 +1,23 @@
+# Use a non-standard port for SSH to reduce exposure
+Port 2222
+
+# Disable SSH shell access
+PermitTTY no
+X11Forwarding no
+AllowTcpForwarding no
+PermitTunnel no
+
+# Enable SCP only
+ForceCommand internal-scp
+
+# Authentication
+PermitRootLogin no
+PasswordAuthentication yes
+PubkeyAuthentication no
+
+# Specify user-specific configurations
+Match User specificuser
+    ChrootDirectory /path/to/configs
+    ForceCommand internal-scp
+    AllowTcpForwarding no
+    PermitTTY no

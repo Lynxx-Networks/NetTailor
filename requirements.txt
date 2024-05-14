@@ -25,3 +25,4 @@ appdirs
 argon2_cffi
 httpx
 qrcode[pil]
+pyjwt

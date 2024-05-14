@@ -1188,6 +1188,16 @@ button.item-container-action-button.item-container-action-button {
     cursor: pointer;
 }
 
+.config-output {
+    width: 100%; /* Makes the textarea take up all the horizontal space of its container */
+    height: 100%; /* Adjust height as needed, or use min-height to ensure it's not too small */
+    box-sizing: border-box; /* Include padding and border in the width and height */
+    padding: 10px; /* Optional: Adds some padding inside the textarea */
+    border: 1px solid #ccc; /* Optional: Adds a light border around the textarea */
+    resize: none; /* Optional: Prevents resizing the textarea */
+}
+
+
 @keyframes frameAnimation {
     0%, 100% { opacity: 0; }
     50% { opacity: 1; }

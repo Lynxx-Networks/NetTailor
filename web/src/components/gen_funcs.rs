@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use ammonia::Builder;
 use web_sys::{DomParser, SupportedType};
+use web_sys::window;
 use wasm_bindgen::JsCast;
 use argon2::{
     password_hash::{
@@ -208,4 +209,10 @@ pub fn convert_time_to_seconds(time: &str) -> Result<u32, Box<dyn std::error::Er
         }
         _ => Err("Invalid time format".into()),
     }
+}
+
+pub fn get_base_url() -> Result<String, &'static str> {
+    window()
+        .and_then(|win| win.location().href().ok())
+        .ok_or("Could not access the window's location")
 }

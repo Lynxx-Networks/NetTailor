@@ -988,3 +988,101 @@ pub async fn call_get_nextcloud_server(
         )))
     }
 }
+
+#[derive(Serialize)]
+pub struct ExternalAuthRequest {
+    pub provider: String,
+    pub client_id: String,
+    pub tenant_id: String,
+    pub redirect_uri: String,
+    pub secret: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ExternalAuthResponse {
+    // Define additional fields based on what your API returns
+    pub success: bool,
+    pub message: String,
+}
+
+pub async fn call_add_external_auth(
+    server_name: String,
+    api_key: String,
+    auth_request: ExternalAuthRequest,
+) -> Result<ExternalAuthResponse, anyhow::Error> {
+    let url = format!("{}/api/data/add_external_auth", server_name);
+    let request_body = serde_json::to_string(&auth_request)?;
+    let api_key_ref = api_key.as_str();
+
+    let response = Request::post(&url)
+        .header("Content-Type", "application/json")
+        .header("Api-Key", api_key_ref)
+        .body(request_body)?
+        .send()
+        .await?;
+
+    if response.ok() {
+        match response.json::<ExternalAuthResponse>().await {
+            Ok(response_data) => Ok(response_data),
+            Err(error) => {
+                console::log_1(&format!("Failed to parse server response: {}", error).into());
+                Err(Error::msg("Failed to parse server response"))
+            }
+        }
+    } else {
+        let status_text = response.status_text();
+        console::log_1(&format!("Error adding external auth settings: {}", status_text).into());
+        Err(Error::msg(format!("Error adding external auth settings. Server Response: {}", status_text)))
+    }
+}
+
+#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
+pub struct ExternalAuthSetting {
+    pub provider: String,
+    pub client_id: String,
+    pub tenant_id: String,
+    pub redirect_uri: String,
+    pub secret: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ExternalAuthGetResponse {
+    pub data: Vec<ExternalAuthSetting>, // The response wraps settings in a list under "data"
+}
+
+pub async fn call_get_all_external_auths(
+    server_name: &String,
+    api_key: &String,
+) -> Result<Vec<ExternalAuthSetting>, anyhow::Error> {
+    let url = format!("{}/api/data/get_all_external_auths", server_name);
+    let api_key_ref = api_key.as_str();
+
+    let response = Request::get(&url)
+        .header("Content-Type", "application/json")
+        .header("Api-Key", api_key_ref)
+        .send()
+        .await?;
+
+    console::log_1(&format!("Request URL: {}", url).into());
+
+    if response.ok() {
+        let response_body = response.json::<ExternalAuthGetResponse>().await?;
+        if !response_body.data.is_empty() {
+            console::log_1(&format!("Received external auth settings: {:?}", response_body.data).into());
+            Ok(response_body.data)
+        } else {
+            console::log_1(&"Error: Received empty 'data' array in response".into());
+            Err(anyhow::Error::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Received empty 'data' array in external auth settings response",
+            )))
+        }
+    } else {
+        let error_text = response.text().await.unwrap_or_default(); // Get error text if any
+        console::log_1(&format!("Error fetching external auth settings: {}, {}", response.status_text(), error_text).into());
+        Err(anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Error fetching external auth settings. Server Response: {}, {}", response.status_text(), error_text),
+        )))
+    }
+}

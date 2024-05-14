@@ -6,8 +6,15 @@ RUN apk update && apk upgrade && \
     apk add --no-cache musl-dev libffi-dev zlib-dev jpeg-dev
 
 # Install wasm target and build tools
-RUN rustup target add wasm32-unknown-unknown && \
-    cargo install trunk wasm-bindgen-cli
+RUN rustup target add wasm32-unknown-unknown
+    
+RUN cargo install wasm-bindgen-cli
+
+RUN apk update && apk upgrade
+
+RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+
+RUN apk add trunk@testing
 
 # Add your application files to the builder stage
 COPY . /app
@@ -23,7 +30,7 @@ FROM alpine:3.19
 LABEL maintainer="Collin Pendleton <collinp@collinpendleton.com>"
 
 # Install runtime dependencies
-RUN apk add --no-cache nginx python3 openssl py3-pip bash mariadb-client curl cronie openrc supervisor
+RUN apk add --no-cache nginx openssh python3 openssl py3-pip bash mariadb-client postgresql-dev curl cronie openrc supervisor
 
 # Setup Python environment
 RUN python3 -m venv /opt/venv

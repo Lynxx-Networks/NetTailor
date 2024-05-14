@@ -1,8 +1,9 @@
 use yew::prelude::*;
-use web_sys::{console, window};
+use web_sys::{console, window, UrlSearchParams, Url};
 use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsValue, JsCast};
 use yew_router::history::{BrowserHistory, History};
+use yew::platform::spawn_local;
 use crate::requests::login_requests::{self, call_check_mfa_enabled};
 use crate::requests::login_requests::{ TimeZoneInfo, call_first_login_done, call_setup_timezone_info, call_verify_mfa, call_self_service_login_status, call_reset_password_create_code, ResetCodePayload, ResetForgotPasswordPayload, call_verify_and_reset_password, call_get_time_info, call_verify_key};
 use crate::components::context::{AppState, UIState};
@@ -10,7 +11,7 @@ use crate::components::context::{AppState, UIState};
 // use yewdux::prelude::*;
 use md5;
 use yewdux::prelude::*;
-use crate::requests::login_requests::{AddUserRequest, call_add_login_user};
+use crate::requests::login_requests::{AddUserRequest, call_add_login_user, call_azure_login_status};
 use crate::requests::setting_reqs::call_get_theme;
 use crate::components::gen_funcs::{encode_password, validate_user_input};
 use crate::components::state_messages::UIStateMsg;
@@ -28,6 +29,36 @@ fn generate_gravatar_url(email: &Option<String>, size: usize) -> String {
     let hash = calculate_gravatar_hash(&email.clone().unwrap());
     format!("https://gravatar.com/avatar/{}?s={}", hash, size)
 }
+
+// fn send_code_to_backend<F>(server_name: String, code: &str, callback: F) 
+// where
+//     F: FnOnce(Result<String, String>) + 'static {
+//     let request_url = format!("{}/api/auth/azure/callback", server_name);
+//     let request_body = serde_json::to_string(&json!({ "code": code })).unwrap();
+
+//     let request = Request::post(&request_url)
+//         .header("Content-Type", "application/json")
+//         .body(request_body);
+
+//     match request {
+//         Ok(req) => {
+//             spawn_local(async move {
+//                 let response = req.send().await;
+//                 match response {
+//                     Ok(resp) => {
+//                         if resp.status() == 200 {
+//                             callback(Ok("session_token".to_string())) // Simulated session token
+//                         } else {
+//                             callback(Err("Failed to authenticate".to_string()))
+//                         }
+//                     }
+//                     Err(_) => callback(Err("Network error".to_string()))
+//                 }
+//             });
+//         },
+//         Err(_) => callback(Err("Failed to create request".to_string()))
+//     }
+// }
 
 #[function_component(Login)]
 pub fn login() -> Html {
@@ -57,6 +88,8 @@ pub fn login() -> Html {
     // Define the initial state
     let page_state = use_state(|| PageState::Default);
     let self_service_enabled = use_state(|| false); // State to store self-service status
+    let azure_login_enabled = use_state(|| false); // State to store self-service status
+
     let effect_self_service = self_service_enabled.clone();
     use_effect_with(
         // No dependencies, so we pass an empty tuple to run this effect once on component mount
@@ -67,7 +100,7 @@ pub fn login() -> Html {
                 // Example server_name retrieval, adjust according to your needs
                 let window = web_sys::window().expect("no global `window` exists");
                 let location = window.location();
-                let server_name = location.href().expect("should have a href").trim_end_matches('/').to_string();
+                let server_name = location.origin().unwrap_or_default();
                 console::log_1(&format!("Server Name: {:?}", &server_name).into());
                 match call_self_service_login_status(server_name).await {
                     Ok(status) => {
@@ -83,6 +116,246 @@ pub fn login() -> Html {
             || ()
         },
     );
+
+    let history_clone = history.clone();
+    let submit_state = page_state.clone();
+    let call_server_name = temp_server_name.clone();
+    let call_api_key = temp_api_key.clone();
+    let call_user_id = temp_user_id.clone();
+    let submit_post_state = _dispatch.clone();
+    let on_submit_session = {
+        let submit_dispatch = dispatch.clone();
+        Callback::from(move |_| {
+            let history = history_clone.clone();
+            let dispatch = submit_dispatch.clone();
+            let post_state = submit_post_state.clone();
+            let page_state = submit_state.clone();
+            let temp_server_name = call_server_name.clone();
+            let temp_api_key = call_api_key.clone();
+            let temp_user_id = call_user_id.clone();
+            // pull session token here
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                let window = window().expect("no global `window` exists");
+                let local_storage = window.local_storage().unwrap().expect("should have local storage");
+                let location = window.location();
+                let server_name = location.origin().unwrap_or_default();
+                let page_state = page_state.clone();
+                web_sys::console::log_1(&"Session token found".into());
+                if let Ok(Some(session_token)) = local_storage.get_item("session_token") {
+                
+                    match login_requests::login_new_server_session(server_name.clone(), session_token).await {
+                        Ok((user_details, login_request, server_details)) => {
+                            // After user login, update the image URL with user's email from user_details
+                            let gravatar_url = generate_gravatar_url(&user_details.Email, 80); // 80 is the image size
+                            let key_copy = login_request.clone();
+                            let user_copy = user_details.clone();
+                            dispatch.reduce_mut(move |state| {
+                                state.user_details = Some(user_details);
+                                state.auth_details = Some(login_request);
+                                state.server_details = Some(server_details);
+                                state.gravatar_url = Some(gravatar_url); // Store the Gravatar URL
+        
+                                state.store_app_state();
+                            });
+
+                                        // Extract server_name, api_key, and user_id
+                            let server_name = key_copy.server_name;
+                            let api_key = key_copy.api_key;
+                            let user_id = user_copy.UserID;
+
+                            temp_server_name.set(server_name.clone());
+                            temp_api_key.set(api_key.clone().unwrap());
+                            temp_user_id.set(user_id.clone());
+
+                            match call_first_login_done(server_name.clone(), api_key.clone().unwrap(), &user_id).await {
+                                Ok(first_login_done) => {
+                                    if first_login_done {
+                                        match call_check_mfa_enabled(server_name.clone(), api_key.clone().unwrap(), &user_id).await {
+                                            Ok(response) => {
+                                                if response.mfa_enabled {
+                                                    page_state.set(PageState::MFAPrompt);
+                                                } else {
+                                                    let theme_api = api_key.clone();
+                                                    let theme_server = server_name.clone();
+                                                    wasm_bindgen_futures::spawn_local(async move {
+                                                        console::log_1(&format!("theme test server: {:?}", theme_server.clone()).into());
+                                                        console::log_1(&format!("theme test api: {:?}", theme_api.clone()).into());
+                                                        match call_get_theme(theme_server, theme_api.unwrap(), &user_id).await{
+                                                            Ok(theme) => {
+                                                                console::log_1(&format!("theme test: {:?}", &theme).into());
+                                                                crate::components::setting_components::theme_options::changeTheme(&theme);
+                                                                // Update the local storage with the new theme
+                                                                if let Some(window) = web_sys::window() {
+                                                                    if let Ok(Some(local_storage)) = window.local_storage() {
+                                                                        match local_storage.set_item("selected_theme", &theme) {
+                                                                            Ok(_) => console::log_1(&"Updated theme in local storage".into()),
+                                                                            Err(e) => console::log_1(&format!("Error updating theme in local storage: {:?}", e).into()),
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                console::log_1(&format!("Error getting theme: {:?}", e).into());
+                                                            }
+                                                        }
+                                                    });
+                                                    wasm_bindgen_futures::spawn_local(async move {
+                                                        console::log_1(&format!("theme test server: {:?}", server_name.clone()).into());
+                                                        console::log_1(&format!("theme test api: {:?}", api_key.clone()).into());
+                                                        match call_get_time_info(server_name, api_key.unwrap(), &user_id).await{
+                                                            Ok(tz_response) => {
+                                                                dispatch.reduce_mut(move |state| {
+                                                                    state.user_tz = Some(tz_response.timezone);
+                                                                    state.hour_preference = Some(tz_response.hour_pref);
+                                                                    state.date_format = Some(tz_response.date_format);
+                                                                });
+                                                            }
+                                                            Err(e) => {
+                                                                console::log_1(&format!("Error getting theme: {:?}", e).into());
+                                                            }
+                                                        }
+                                                    });
+                                                    history.push("/home"); // Use the route path
+                                                }
+
+                                            },
+                                            Err(_) => {
+                                                post_state.reduce_mut(|state| state.error_message = Option::from("Error Checking MFA Status".to_string()));
+                                            }
+                                        }
+                                    } else {
+                                        page_state.set(PageState::TimeZone);
+                                    }
+                                },
+                                Err(_) => {
+                                    post_state.reduce_mut(|state| state.error_message = Option::from("Error checking first login status".to_string()));
+                                    console::log_1(&"Error checking first login status".into());
+                                }
+                            }
+                        },
+                        Err(_) => {
+                            console::log_1(&format!("Error logging into server: {}", server_name).into());
+                            post_state.reduce_mut(|state| state.error_message = Option::from("Your credentials appear to be incorrect".to_string()));
+                            // Handle error
+                        }
+                    }
+                }
+            });
+        })
+    };
+
+
+
+    let azure_history = history.clone();
+    use_effect_with((), move |_| {
+        if let Some(window) = web_sys::window() {
+            let location = window.location();
+            let href = location.href().unwrap_or_default();
+            let url = Url::new(&href).unwrap();
+            let params = UrlSearchParams::new_with_str(&url.search()).unwrap();
+            let server_name = location.origin().unwrap_or_default(); // This should be something like 'http://localhost:8000'
+
+            if let Some(code) = params.get("code") {
+                console::log_1(&JsValue::from(format!("Authorization code received: {}", code)));
+                let fetch_url = format!("{}/api/auth/azure/callback", server_name);
+                let request_body = serde_json::to_string(&serde_json::json!({ "code": code }));
+    
+                match request_body {
+                    Ok(body) => {
+                        let request = gloo_net::http::Request::post(&fetch_url)
+                            .header("Content-Type", "application/json")
+                            .body(body);
+    
+                            match request {
+                                Ok(req) => {
+                                    spawn_local(async move {
+                                        match req.send().await {
+                                            Ok(response) if response.ok() => {
+                                                match response.json::<serde_json::Value>().await {
+                                                    Ok(json) if json.get("access_token").is_some() => {
+                                                        let token = json["access_token"].as_str().unwrap();
+                                                        let local_storage = window.local_storage().unwrap().unwrap();
+                                                        local_storage.set_item("session_token", token).unwrap();
+                                                        console::log_1(&JsValue::from("Session token saved to local storage and user authenticated successfully"));
+                                                        // azure_history.push("/home");
+                                                        on_submit_session.emit(());
+                                                    }
+                                                    Ok(_) | Err(_) => {
+                                                        console::log_1(&JsValue::from("Failed to parse the authentication response."));
+                                                    }
+                                                }
+                                            }
+                                            Ok(_) => {
+                                                console::log_1(&JsValue::from("Authentication failed."));
+                                            }
+                                            Err(err) => {
+                                                console::log_1(&JsValue::from(format!("Network error: {:?}", err)));
+                                            }
+                                        }
+                                    });
+                                }
+                                Err(e) => {
+                                    console::log_1(&JsValue::from(format!("Error creating request: {:?}", e)));
+                                }
+                            }
+                    }
+                    Err(e) => {
+                        console::log_1(&JsValue::from(format!("Error serializing request body: {:?}", e)));
+                    }
+                }
+            }
+        }
+    
+        || () // Cleanup function if needed
+    });
+
+    let effect_azure_login = self_service_enabled.clone();
+    use_effect_with(
+        // No dependencies, so we pass an empty tuple to run this effect once on component mount
+        (),
+        move |_| {
+            let azure_login_enabled = effect_azure_login.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                // Example server_name retrieval, adjust according to your needs
+                let window = web_sys::window().expect("no global `window` exists");
+                let location = window.location();
+                let server_name = location.origin().unwrap_or_default();
+                console::log_1(&format!("Server Name: {:?}", &server_name).into());
+                match call_azure_login_status(server_name).await {
+                    Ok(azure_values) => {
+                        // azure_login_enabled.set(true);
+                        let window = web_sys::window().expect("no global `window` exists");
+                        let storage = window.local_storage().unwrap().expect("should have local storage");
+    
+                        // Storing Azure Auth values in local storage
+                        storage.set_item("azure_client_id", &azure_values.client_id).unwrap();
+                        storage.set_item("azure_tenant_id", &azure_values.tenant_id).unwrap();
+                        storage.set_item("azure_redirect_uri", &azure_values.redirect_uri).unwrap();
+                        storage.set_item("azure_client_secret", &azure_values.client_secret).unwrap();
+                        console::log_1(&"Azure auth settings saved to local storage".into());
+                    
+                        // Enable the Azure login button
+                        azure_login_enabled.set(true);
+                    }
+                    Err(e) => {
+                        azure_login_enabled.set(false);
+                        if e.to_string().contains("not configured") {
+                            // Handle not configured state gracefully
+                            console::log_1(&JsValue::from("Azure AD not configured. Skipping Azure login."));
+                        } else {
+                            // Handle other errors more visibly
+                            web_sys::console::log_1(&format!("Error fetching Azure login status: {:?}", e).into());
+                        }
+                    }
+                }
+            });
+    
+            // Cleanup function, not needed in this case
+            || ()
+        },
+    );
+    
 
 
     {
@@ -105,6 +378,8 @@ pub fn login() -> Html {
             }
         });
     }
+    
+
     let effect_displatch = dispatch.clone();
     // User Auto Login with saved state
     use_effect_with((), {
@@ -123,6 +398,10 @@ pub fn login() -> Html {
                         if let Ok(Some(user_state)) = storage.get_item("userState") {
                             let app_state_result = AppState::deserialize(&user_state);
 
+                                        // Attempt to retrieve both types of authentication details
+                            let standard_auth = storage.get_item("userAuthState");
+                            let session_auth = storage.get_item("userSessionAuthState");
+                            
                             if let Ok(Some(auth_state)) = storage.get_item("userAuthState") {
                                 match AppState::deserialize(&auth_state) {
                                     Ok(auth_details) => { // Successful deserialization of auth state
@@ -279,6 +558,47 @@ pub fn login() -> Html {
             password.set(e.target_unchecked_into::<web_sys::HtmlInputElement>().value());
         })
     };
+
+    let history_clone_azure = history.clone();
+    let submit_state_azure = page_state.clone();
+    let call_server_name_azure = temp_server_name.clone();
+    let call_api_key_azure = temp_api_key.clone();
+    let call_user_id_azure = temp_user_id.clone();
+    let submit_post_state_azure = _dispatch.clone();
+
+    let on_submit_azure = {
+        let submit_dispatch = dispatch.clone();
+        Callback::from(move |_| {
+            let history = history_clone_azure.clone();
+            let dispatch = submit_dispatch.clone();
+            let post_state = submit_post_state_azure.clone();
+            let server_name = call_server_name_azure.clone();
+            let page_state = submit_state_azure.clone();
+            let temp_server_name = call_server_name_azure.clone();
+            let temp_api_key = call_api_key_azure.clone();
+            let temp_user_id = call_user_id_azure.clone();
+
+            // Retrieve the Azure Auth values from local storage
+            let window = web_sys::window().expect("no global `window` exists");
+            let storage = window.local_storage().unwrap().expect("should have local storage");
+            
+            let client_id = storage.get_item("azure_client_id").unwrap().unwrap_or_default();
+            let tenant_id = storage.get_item("azure_tenant_id").unwrap().unwrap_or_default();
+            let redirect_uri = storage.get_item("azure_redirect_uri").unwrap().unwrap_or_default();
+    
+            let auth_url = format!(
+                "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize?client_id={}&response_type=code&redirect_uri={}&response_mode=query&scope=openid%20profile&state=12345&prompt=select_account",
+                tenant_id, client_id, redirect_uri
+            );
+            // Open the authentication URL in a new tab
+            web_sys::window()
+                .unwrap()
+                .open_with_url_and_target(&auth_url, "_blank")
+                .unwrap();
+        })
+    };
+
+
     let history_clone = history.clone();
     let submit_state = page_state.clone();
     let call_server_name = temp_server_name.clone();
@@ -407,6 +727,13 @@ pub fn login() -> Html {
         let on_submit = on_submit.clone(); // Clone the existing on_submit logic
         Callback::from(move |_: MouseEvent| {
             on_submit.emit(()); // Invoke the existing on_submit logic
+        })
+    };
+
+    let begin_azure_auth = {
+        let on_submit_azure = on_submit_azure.clone(); // Clone the existing on_submit logic
+        Callback::from(move |_: MouseEvent| {
+            on_submit_azure.emit(()); // Invoke the existing on_submit logic
         })
     };
 
@@ -1139,10 +1466,23 @@ pub fn login() -> Html {
                         </svg>
                         {"Sign in with Github"}
                     </button>
-                    <button type="button" class="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 me-4 mb-2">
+                    // {
+                    //     if *azure_login_enabled {
+                    //         html! {
+                    //             <button type="button" onclick={begin_azure_auth} class="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 me-4 mb-2">
+                    //                 <svg id="bdb56329-4717-4410-aa13-4505ecaa4e46" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><defs><linearGradient id="ba2610c3-a45a-4e7e-a0c0-285cfd7e005d" x1="13.25" y1="13.02" x2="8.62" y2="4.25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1988d9" /><stop offset="0.9" stop-color="#54aef0" /></linearGradient><linearGradient id="bd8f618b-4f2f-4cb7-aff0-2fd2d211326d" x1="11.26" y1="10.47" x2="14.46" y2="15.99" gradientUnits="userSpaceOnUse"><stop offset="0.1" stop-color="#54aef0" /><stop offset="0.29" stop-color="#4fabee" /><stop offset="0.51" stop-color="#41a2e9" /><stop offset="0.74" stop-color="#2a93e0" /><stop offset="0.88" stop-color="#1988d9" /></linearGradient></defs><title>{"Icon-identity-221"}</title><polygon points="1.01 10.19 8.93 15.33 16.99 10.17 18 11.35 8.93 17.19 0 11.35 1.01 10.19" fill="#50e6ff" /><polygon points="1.61 9.53 8.93 0.81 16.4 9.54 8.93 14.26 1.61 9.53" fill="#fff" /><polygon points="8.93 0.81 8.93 14.26 1.61 9.53 8.93 0.81" fill="#50e6ff" /><polygon points="8.93 0.81 8.93 14.26 16.4 9.54 8.93 0.81" fill="url(#ba2610c3-a45a-4e7e-a0c0-285cfd7e005d)" /><polygon points="8.93 7.76 16.4 9.54 8.93 14.26 8.93 7.76" fill="#53b1e0" /><polygon points="8.93 14.26 1.61 9.53 8.93 7.76 8.93 14.26" fill="#9cebff" /><polygon points="8.93 17.19 18 11.35 16.99 10.17 8.93 15.33 8.93 17.19" fill="url(#bd8f618b-4f2f-4cb7-aff0-2fd2d211326d)" /></svg>
+                    //                 {"  Sign in with Azure"}
+                    //             </button>
+                    //         }
+                    //     } else {
+                    //         html! {}
+                    //     }
+                    // }
+                    <button type="button" onclick={begin_azure_auth} class="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 me-4 mb-2">
                         <svg id="bdb56329-4717-4410-aa13-4505ecaa4e46" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><defs><linearGradient id="ba2610c3-a45a-4e7e-a0c0-285cfd7e005d" x1="13.25" y1="13.02" x2="8.62" y2="4.25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1988d9" /><stop offset="0.9" stop-color="#54aef0" /></linearGradient><linearGradient id="bd8f618b-4f2f-4cb7-aff0-2fd2d211326d" x1="11.26" y1="10.47" x2="14.46" y2="15.99" gradientUnits="userSpaceOnUse"><stop offset="0.1" stop-color="#54aef0" /><stop offset="0.29" stop-color="#4fabee" /><stop offset="0.51" stop-color="#41a2e9" /><stop offset="0.74" stop-color="#2a93e0" /><stop offset="0.88" stop-color="#1988d9" /></linearGradient></defs><title>{"Icon-identity-221"}</title><polygon points="1.01 10.19 8.93 15.33 16.99 10.17 18 11.35 8.93 17.19 0 11.35 1.01 10.19" fill="#50e6ff" /><polygon points="1.61 9.53 8.93 0.81 16.4 9.54 8.93 14.26 1.61 9.53" fill="#fff" /><polygon points="8.93 0.81 8.93 14.26 1.61 9.53 8.93 0.81" fill="#50e6ff" /><polygon points="8.93 0.81 8.93 14.26 16.4 9.54 8.93 0.81" fill="url(#ba2610c3-a45a-4e7e-a0c0-285cfd7e005d)" /><polygon points="8.93 7.76 16.4 9.54 8.93 14.26 8.93 7.76" fill="#53b1e0" /><polygon points="8.93 14.26 1.61 9.53 8.93 7.76 8.93 14.26" fill="#9cebff" /><polygon points="8.93 17.19 18 11.35 16.99 10.17 8.93 15.33 8.93 17.19" fill="url(#bd8f618b-4f2f-4cb7-aff0-2fd2d211326d)" /></svg>
                         {"  Sign in with Azure"}
                     </button>
+
 
                 </div>
                 {
@@ -1256,6 +1596,14 @@ pub fn login() -> Html {
             password.set(e.target_unchecked_into::<web_sys::HtmlInputElement>().value());
         })
     };
+
+    let history_clone = history.clone();
+    // let app_state_clone = app_state.clone();
+    let submit_state = page_state.clone();
+    let call_server_name = temp_server_name.clone();
+    let call_api_key = temp_api_key.clone();
+    let call_user_id = temp_user_id.clone();
+    let submit_post_state = _dispatch.clone();
 
     let history_clone = history.clone();
     // let app_state_clone = app_state.clone();

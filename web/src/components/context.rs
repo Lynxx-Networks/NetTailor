@@ -92,6 +92,10 @@ pub struct AppState {
     pub user_tz: Option<String>,
     pub hour_preference: Option<i16>,
     pub date_format: Option<String>,
+    pub azure_redirect_url: Option<String>,
+    pub azure_client_id: Option<String>,
+    pub azure_tenant_id: Option<String>,
+    pub use_cloud_storage: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, PartialEq, Store, Debug)]

@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build the Docker test container
-      run: docker build -t madeofpendletonwool/allegro-test . -f dockerfile-test
+      run: docker build -t madeofpendletonwool/nettailor-test . -f dockerfile-test
     - uses: rustsec/audit-check@v1.4.1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}

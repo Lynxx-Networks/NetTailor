@@ -65,6 +65,33 @@ try:
             GpodderToken TEXT DEFAULT ''
         )
     """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Configurations (
+            ConfigID INT AUTO_INCREMENT PRIMARY KEY,
+            UserID INT,
+            DeviceHostname VARCHAR(255),
+            ConfigName VARCHAR(255),
+            StorageLocation ENUM('local', 'cloud'),
+            FilePath VARCHAR(255),
+            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (UserID) REFERENCES Users(UserID)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS SharedConfigs (
+            SharedID INT AUTO_INCREMENT PRIMARY KEY,
+            ConfigID INT,
+            Link VARCHAR(255) UNIQUE,
+            AccessKey VARCHAR(64),
+            ExpiresAt DATETIME,
+            FOREIGN KEY (ConfigID) REFERENCES Configurations(ConfigID)
+        );
+    """)
+
+
 
     logging.info("Database tables created or verified successfully.")
 
@@ -204,6 +231,15 @@ try:
                         Theme VARCHAR(255) DEFAULT 'nordic',
                         FOREIGN KEY (UserID) REFERENCES Users(UserID)
                     )""")
+    
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ExternalAuth (
+                        ExternalAuthID INT AUTO_INCREMENT PRIMARY KEY,
+                        Provider VARCHAR(255) DEFAULT 'none',
+                        ClientID VARCHAR(255) DEFAULT 'none',
+                        TenantID VARCHAR(255) DEFAULT 'none',
+                        RedirectURI VARCHAR(255) DEFAULT 'none',
+                        Secret VARCHAR(255) DEFAULT 'none'
+                )""")
 
     cursor.execute("""INSERT IGNORE INTO UserSettings (UserID, Theme) VALUES ('1', 'nordic')""")
     cursor.execute("""INSERT IGNORE INTO UserSettings (UserID, Theme) VALUES ('2', 'nordic')""")
