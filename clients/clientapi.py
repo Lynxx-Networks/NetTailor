@@ -50,6 +50,9 @@ import database_functions.functions
 import database_functions.auth_functions
 import database_functions.app_functions
 
+# client_list = direct_database_connection
+
+
 database_type = str(os.getenv('DB_TYPE', 'mariadb'))
 if database_type == "postgresql":
     print(f"You've selected a postgresql database.")

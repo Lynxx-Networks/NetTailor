@@ -37,6 +37,7 @@ pub fn create_config() -> Html {
     let loading = use_state(|| true);
     let banked_configs = use_state(|| vec![]);
     let banked_vlans = use_state(|| vec![]);
+    let banked_routes = use_state(|| vec![]);
 
 
     let os_version = use_state(|| String::from(""));
@@ -318,7 +319,7 @@ pub fn create_config() -> Html {
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Client Domain"
+                    placeholder="myclient.com"
                     value={(*client_domain).clone()}
                     oninput={{
                         let client_domain = client_domain.clone();
@@ -356,11 +357,11 @@ pub fn create_config() -> Html {
     let encrypted_enable_pass_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"Encrypted Enable Pass:"}</label>
+                <label style="margin-right: 10px;">{"Enable Pass:"}</label>
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Encrypted Enable Pass"
+                    placeholder="MySecurePassword!"
                     value={(*encrypted_enable_pass).clone()}
                     oninput={{
                         let encrypted_enable_pass = encrypted_enable_pass.clone();
@@ -381,7 +382,7 @@ pub fn create_config() -> Html {
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Device IP"
+                    placeholder="Loopback IP"
                     value={(*device_ip).clone()}
                     oninput={{
                         let device_ip = device_ip.clone();
@@ -445,7 +446,7 @@ pub fn create_config() -> Html {
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Tacacs Server"
+                    placeholder="tacacs.hoth.com"
                     value={(*tacacs_server).clone()}
                     oninput={{
                         let tacacs_server = tacacs_server.clone();
@@ -462,11 +463,11 @@ pub fn create_config() -> Html {
     let ise_server_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"ISE Server:"}</label>
+                <label style="margin-right: 10px;">{"Authentication Server:"}</label>
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="ISE Server"
+                    placeholder="1.2.3.4"
                     value={(*ise_server).clone()}
                     oninput={{
                         let ise_server = ise_server.clone();
@@ -592,7 +593,7 @@ pub fn create_config() -> Html {
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Auvik Collector"
+                    placeholder="1.2.3.4"
                     value={(*auvik_collector).clone()}
                     oninput={{
                         let auvik_collector = auvik_collector.clone();
@@ -630,11 +631,11 @@ pub fn create_config() -> Html {
     let vlan_range_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"VLAN Range:"}</label>
+                <label style="margin-right: 10px;">{"Spanning-tree VLAN Range:"}</label>
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="VLAN Range"
+                    placeholder="100-105"
                     value={(*vlan_range).clone()}
                     oninput={{
                         let vlan_range = vlan_range.clone();
@@ -651,38 +652,17 @@ pub fn create_config() -> Html {
     let encrypted_user_pass_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"Encrypted User Pass:"}</label>
+                <label style="margin-right: 10px;">{"User Pass:"}</label>
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Encrypted User Pass"
+                    placeholder="ExtraSecurePassword!"
                     value={(*encrypted_user_pass).clone()}
                     oninput={{
                         let encrypted_user_pass = encrypted_user_pass.clone();
                         Callback::from(move |e: InputEvent| {
                             let input: HtmlInputElement = e.target_unchecked_into();
                             encrypted_user_pass.set(input.value());
-                        })
-                    }}
-                />
-            </div>
-        </div>
-    };
-
-    let ip_routes_block = html! {
-        <div class="config-form">
-            <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
-                <label style="margin-right: 10px;">{"IP Routes:"}</label>
-                <input
-                    type="text"
-                    class="email-input border p-2 ml-2 rounded"
-                    placeholder="IP Routes"
-                    value={(*ip_routes).clone()}
-                    oninput={{
-                        let ip_routes = ip_routes.clone();
-                        Callback::from(move |e: InputEvent| {
-                            let input: HtmlInputElement = e.target_unchecked_into();
-                            ip_routes.set(input.value());
                         })
                     }}
                 />
@@ -717,7 +697,7 @@ pub fn create_config() -> Html {
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Location"
+                    placeholder="West Wing Death Star"
                     value={(*location).clone()}
                     oninput={{
                         let location = location.clone();
@@ -759,7 +739,7 @@ pub fn create_config() -> Html {
                 <input
                     type="text"
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Tacacs Key"
+                    placeholder="123456789"
                     value={(*tacacs_key).clone()}
                     oninput={{
                         let tacacs_key = tacacs_key.clone();
@@ -880,6 +860,7 @@ pub fn create_config() -> Html {
                     value={(*device_type).clone()}
                     oninput={on_device_type_change.clone()}
                 >
+                    <option value="" disabled=true selected=true hidden=true>{"Select Device Type"}</option>
                     <option value="Switch">{"Switch"}</option>
                     <option value="Router">{"Router"}</option>
                     // Add more options as needed
@@ -909,6 +890,7 @@ pub fn create_config() -> Html {
                         if *device_type == "Switch" {
                             html! {
                                 <>
+                                    <option value="" disabled=true selected=true hidden=true>{"Select Service Type"}</option>
                                     <option value="access">{"Access"}</option>
                                     <option value="distribution">{"Distribution"}</option>
                                     <option value="core">{"Core"}</option>
@@ -917,6 +899,7 @@ pub fn create_config() -> Html {
                         } else if *device_type == "Router" {
                             html! {
                                 <>
+                                    <option value="" disabled=true selected=true hidden=true>{"Select Service Type"}</option>
                                     <option value="voip">{"VoIP"}</option>
                                     <option value="dmvpn">{"DMVPN"}</option>
                                     <option value="none">{"None (Edge)"}</option>
@@ -954,12 +937,14 @@ pub fn create_config() -> Html {
                         if *device_type == "Switch" {
                             html! {
                                 <>
+                                    <option value="" disabled=true selected=true hidden=true>{"Select Device Model"}</option>
                                     <option value="access">{"3750"}</option>
                                 </>
                             }
                         } else if *device_type == "Router" {
                             html! {
                                 <>
+                                    <option value="" disabled=true selected=true hidden=true>{"Select Device Model"}</option>
                                     <option value="voip">{"rmodel1"}</option>
                                     <option value="dmvpn">{"rmodel2"}</option>
                                     <option value="none">{"rmodel3"}</option>
@@ -1171,7 +1156,7 @@ pub fn create_config() -> Html {
     }).collect::<Html>();
     
     
-    let interface_setup_accordion_item = if *device_type == "Switch" {
+    let interface_setup_accordion_item = if *device_type == "Switch" || *device_type == "Router" {
         html! {
             <AccordionItem title="Interface Setup" content={html!{
                 <div class="config-form">
@@ -1316,7 +1301,7 @@ pub fn create_config() -> Html {
         }
     }).collect::<Html>();
 
-    let vlan_setup_accordion_item = if *device_type == "Switch" || *device_type == "Router"{ 
+    let vlan_setup_accordion_item = if *device_type == "Switch"{ 
             html! {
             <AccordionItem title="VLAN Setup" content={html!{
                 <div>
@@ -1330,6 +1315,114 @@ pub fn create_config() -> Html {
         }
     } else {
         html! {}
+    };
+
+    let apply_route_configuration = {
+        let banked_routes = banked_routes.clone();
+        Callback::from(move |event: yew::MouseEvent| {
+            let window = web_sys::window().expect("no global `window` exists");
+            let document = window.document().expect("should have a document on window");
+    
+            let network = document
+                .get_element_by_id("network")
+                .expect("should have #network on the page")
+                .dyn_into::<HtmlInputElement>()
+                .unwrap()
+                .value();
+    
+            let subnet = document
+                .get_element_by_id("subnet")
+                .expect("should have #subnet on the page")
+                .dyn_into::<HtmlInputElement>()
+                .unwrap()
+                .value();
+    
+            let ip_address = document
+                .get_element_by_id("ip-address")
+                .expect("should have #ip-address on the page")
+                .dyn_into::<HtmlInputElement>()
+                .unwrap()
+                .value();
+    
+            let config = generate_ip_route_configuration(&network, &subnet, &ip_address);
+    
+            banked_routes.set({
+                let mut routes = (*banked_routes).clone();
+                routes.push(config);
+                routes
+            });
+        })
+    };
+    
+    fn generate_ip_route_configuration(network: &str, subnet: &str, ip_address: &str) -> String {
+        format!(
+            "ip route {} {} {}",
+            network, subnet, ip_address
+        )
+    }
+    
+    let add_routes_to_config = {
+        let banked_routes = banked_routes.clone();
+        let ip_routes = ip_routes.clone();
+        Callback::from(move |_| {
+            let final_route_config = (*banked_routes).join("\n");
+            ip_routes.set(final_route_config.clone());
+            // Add code to use final_route_config in your final configuration
+            web_sys::console::log_1(&final_route_config.into());
+            // Clear banked route configurations after adding to the final config
+            banked_routes.set(vec![]);
+        })
+    };
+    
+    let remove_route_config = {
+        let banked_routes = banked_routes.clone();
+        Callback::from(move |index: usize| {
+            banked_routes.set({
+                let mut routes = (*banked_routes).clone();
+                routes.remove(index);
+                routes
+            });
+        })
+    };
+
+    let route_configuration_block = html! {
+        <div class="config-form">
+            <div class="input-field">
+                <label>{"Network:"}</label>
+                <input type="text" class="email-input border p-2 ml-2 rounded" id="network" placeholder="172.20.102.0"/>
+            </div>
+            <div class="input-field">
+                <label>{"Subnet:"}</label>
+                <input type="text" class="email-input border p-2 ml-2 rounded" id="subnet" placeholder="255.255.255.0"/>
+            </div>
+            <div class="input-field">
+                <label>{"IP Address:"}</label>
+                <input type="text" class="email-input border p-2 ml-2 rounded" id="ip-address" placeholder="172.20.0.49"/>
+            </div>
+            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded" onclick={apply_route_configuration}>{"Apply to bank"}</button>
+        </div>
+    };
+    
+    let banked_route_list = banked_routes.iter().enumerate().map(|(index, config)| {
+        html! {
+            <div class="code-block">
+                <h3>{"Banked IP Route Configuration:"}</h3>
+                <pre>{config}</pre>
+                <button class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 mt-3 rounded" onclick={remove_route_config.reform(move |_| index)}>{"Remove"}</button>
+            </div>
+        }
+    }).collect::<Html>();
+
+    let route_setup_accordion_item = html! {
+        <AccordionItem title="IP Route Setup" content={html!{
+            <div>
+                {route_configuration_block}
+                <div class="config-list">
+                    {banked_route_list}
+                    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mt-6 rounded" onclick={add_routes_to_config}>{"Add to Config"}</button>
+                </div>
+            </div>
+        }} position={AccordionItemPosition::Middle}/>
     };
 
 
@@ -1362,7 +1455,6 @@ pub fn create_config() -> Html {
                                                 {location_block}
                                                 {tacacs_server_block}
                                                 {tacacs_key_block}
-                                                {custom_snmp_config_block}
                                                 {snmp_community_string_block}
 
                                                 {ise_server_block}
@@ -1401,11 +1493,11 @@ pub fn create_config() -> Html {
                                             {encrypted_user_pass_block}
                                             {timezone_block}
                                             {vlan_range_block}
-                                            {ip_routes_block}
                                         </div>
                                         }} position={AccordionItemPosition::Middle}/>
                                         {vlan_setup_accordion_item}
                                         {interface_setup_accordion_item}
+                                        {route_setup_accordion_item}
 
                                 </div>
                             </div>
