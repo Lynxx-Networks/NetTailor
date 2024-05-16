@@ -121,6 +121,8 @@ pub fn create_config() -> Html {
         let call_config = (*configuration).clone();
         let call_hostname = (*hostname).clone();
         let call_location = (*location).clone();
+        let client_name = (*client_name).clone();
+        let device_type = (*device_type).clone();
         let shared_link = shared_link.clone(); 
         Callback::from(move |_: MouseEvent| {
             web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
@@ -150,6 +152,9 @@ pub fn create_config() -> Html {
             let device_info = DeviceInfo {
                 user_id: user_id.clone().unwrap(),
                 device_hostname: call_hostname.clone(),
+                location: call_location.clone(),
+                client_name: client_name.clone(),
+                device_type: device_type.clone(),
                 config_name: call_hostname.clone(),
                 url: base_url.clone(),
             };
@@ -1460,6 +1465,7 @@ pub fn create_config() -> Html {
             </div>
         }} position={AccordionItemPosition::Middle}/>
     };
+
 
     let link_display = if !shared_link.is_empty() {
         html! {

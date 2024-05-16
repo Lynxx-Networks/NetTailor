@@ -28,6 +28,14 @@ pub fn search(_props: &SearchProps) -> Html {
     let effect_dispatch = dispatch.clone();
     let history = BrowserHistory::new();
 
+    let input_ref = use_node_ref();
+    let input_ref_clone1 = input_ref.clone();
+    let input_ref_clone2 = input_ref.clone();
+    let container_ref = use_node_ref();
+    let container_ref_clone1 = container_ref.clone();
+    let form_ref = NodeRef::default();
+    let form_ref_clone1 = form_ref.clone();
+
     console::log_1(&format!("About to run check auth").into());
     // check_auth(effect_dispatch);
 
@@ -68,7 +76,7 @@ pub fn search(_props: &SearchProps) -> Html {
     let (audio_state, audio_dispatch) = use_store::<UIState>();
     let error_message = audio_state.error_message.clone();
     let info_message = audio_state.info_message.clone();
-    let loading = use_state(|| true);
+    let loading = use_state(|| false);
     web_sys::console::log_1(&"testlog".into());
 
     {
@@ -92,41 +100,105 @@ pub fn search(_props: &SearchProps) -> Html {
         });
     }
 
+    let dropdown1_open = use_state(|| false);
+    let dropdown2_open = use_state(|| false);
+    let dropdown3_open = use_state(|| false);
+
+    let toggle_dropdown1 = {
+        let dropdown1_open = dropdown1_open.clone();
+        Callback::from(move |_| dropdown1_open.set(!*dropdown1_open))
+    };
+
+    let toggle_dropdown2 = {
+        let dropdown2_open = dropdown2_open.clone();
+        Callback::from(move |_| dropdown2_open.set(!*dropdown2_open))
+    };
+
+    let toggle_dropdown3 = {
+        let dropdown3_open = dropdown3_open.clone();
+        Callback::from(move |_| dropdown3_open.set(!*dropdown3_open))
+    };
 
     console::log_1(&format!("loading ep value: {:?}", *loading).into());
 
+    let on_submit = Callback::from(move |event: SubmitEvent| {
+        event.prevent_default();
+    });
+
+
     html! {
         <>
-        <div class="main-container">
-            <Search_nav />
-            {
-                if *loading { // If loading is true, display the loading animation
-                    html! {
-                        <div class="loading-animation">
-                            <div class="frame1"></div>
-                            <div class="frame2"></div>
-                            <div class="frame3"></div>
-                            <div class="frame4"></div>
-                            <div class="frame5"></div>
-                            <div class="frame6"></div>
+        <div class="search-page-container flex flex-col">
+            <div class="search-container" ref={container_ref.clone()}>
+                <form class="search-page-input" onsubmit={on_submit} ref={form_ref.clone()}>
+                    <div class="flex space-x-4">
+                        <div class="relative">
+                            <button id="dropdown1Button" type="button" onclick={toggle_dropdown1.clone()} class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                                {"Client Name"}
+                                <svg class="w-2.5 h-2.5 ms-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
+                                </svg>
+                            </button>
+                            <div id="dropdown1" class={if *dropdown1_open { "z-10 bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" } else { "z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" }}>
+                                <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdown1Button">
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">{"Option 1"}</a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">{"Option 2"}</a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                    }
-                } else {
-                            empty_message(
-                                "No Recent Episodes Found",
-                                "You can add new podcasts by using the search bar above. Search for your favorite podcast and click the plus button to add it."
-                            )
-                        }
-                    }
-        // Conditional rendering for the error banner
-        if let Some(error) = error_message {
-            <div class="error-snackbar">{ error }</div>
-        }
-        if let Some(info) = info_message {
-            <div class="info-snackbar">{ info }</div>
-        }
+                        <div class="relative">
+                            <button id="dropdown2Button" type="button" onclick={toggle_dropdown2.clone()} class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                                {"Device Type"}
+                                <svg class="w-2.5 h-2.5 ms-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
+                                </svg>
+                            </button>
+                            <div id="dropdown2" class={if *dropdown2_open { "z-10 bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" } else { "z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" }}>
+                                <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdown2Button">
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">{"Option 1"}</a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">{"Option 2"}</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <button id="dropdown3Button" type="button" onclick={toggle_dropdown3.clone()} class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+                                {"Location"}
+                                <svg class="w-2.5 h-2.5 ms-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4"/>
+                                </svg>
+                            </button>
+                            <div id="dropdown3" class={if *dropdown3_open { "z-10 bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" } else { "z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" }}>
+                                <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdown3Button">
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">{"Option 1"}</a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">{"Option 2"}</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
-        <App_drawer />
+            <App_drawer />
+            if let Some(error) = error_message {
+                <div class="error-snackbar">{ error }</div>
+            }
+            if let Some(info) = info_message {
+                <div class="info-snackbar">{ info }</div>
+            }
+
         </>
     }
+
 }

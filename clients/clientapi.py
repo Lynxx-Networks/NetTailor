@@ -1474,6 +1474,9 @@ def restore_server_fun(database_pass: str, server_restore_data: str):
 class DeviceConfig(BaseModel):
     user_id: int
     device_hostname: str
+    location: str
+    client_name: str
+    device_type: str
     config_name: str
     url: str
 
@@ -1501,7 +1504,7 @@ async def add_config(data: DeviceConfig, cnx=Depends(get_database_connection),
     # Call the database function to add the config
     # Add config and get shared details
     config_id, shared_link, access_key = database_functions.functions.add_config_to_db(
-        cnx, data.user_id, data.device_hostname, data.config_name, storage_location, file_path, data.url
+        cnx, data.user_id, data.device_hostname, data.location, data.client_name, data.device_type, data.config_name, storage_location, file_path, data.url
     )
     if config_id:
         return {

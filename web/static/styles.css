@@ -840,9 +840,7 @@ button.item-container-action-button.item-container-action-button {
 .search-container {
     position: relative;
     display: flex;
-    justify-content: center;
     align-items: center;
-    height: 100vh;
     padding-top: 120px;
 }
 
