@@ -50,8 +50,15 @@ import database_functions.functions
 import database_functions.auth_functions
 import database_functions.app_functions
 
-# client_list = direct_database_connection
 
+def load_client_list():
+    file_path = '/opt/nettailor/clients_list.json'
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    # Ensure the data is structured as a list of objects with a 'name' key
+    return data['clients']
+
+client_list = load_client_list()
 
 database_type = str(os.getenv('DB_TYPE', 'mariadb'))
 if database_type == "postgresql":
@@ -1563,7 +1570,17 @@ async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_
     except IOError as e:
         raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
 
+@app.get("/api/data/clients")
+async def get_clients(api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
 
+    try:
+        clients = load_client_list()
+        return JSONResponse(content={"clients": clients})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def async_tasks():
@@ -1593,6 +1610,4 @@ if __name__ == '__main__':
         host="0.0.0.0",
         port=args.port,
         log_config=config_file
-        # ssl_keyfile="/opt/pinepods/certs/key.pem",
-        # ssl_certfile="/opt/pinepods/certs/cert.pem"
     )

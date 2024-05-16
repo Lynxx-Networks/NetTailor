@@ -3,6 +3,7 @@ use ammonia::Builder;
 use web_sys::{DomParser, SupportedType};
 use web_sys::window;
 use wasm_bindgen::JsCast;
+use web_sys::Url;
 use argon2::{
     password_hash::{
         rand_core::OsRng,
@@ -212,7 +213,13 @@ pub fn convert_time_to_seconds(time: &str) -> Result<u32, Box<dyn std::error::Er
 }
 
 pub fn get_base_url() -> Result<String, &'static str> {
-    window()
-        .and_then(|win| win.location().href().ok())
-        .ok_or("Could not access the window's location")
+    let window = web_sys::window().ok_or("No global `window` exists")?;
+    let href = window.location().href().map_err(|_| "Failed to retrieve the href")?;
+
+    // Create a new URL object from the href
+    let url = Url::new(&href).map_err(|_| "Failed to construct URL object")?;
+
+    // Construct the base URL using the protocol and host
+    let base_url = format!("{}//{}", url.protocol(), url.host());
+    Ok(base_url)
 }

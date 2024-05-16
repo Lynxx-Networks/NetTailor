@@ -2,6 +2,7 @@ use std::default;
 use gloo_utils::document;
 use wasm_bindgen::JsValue;
 use gloo::history::Location;
+use serde::{Deserialize, Serialize};
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
 use yewdux::use_store;
@@ -18,6 +19,22 @@ use crate::components::settings::AccordionItemPosition;
 use web_sys::HtmlTextAreaElement;
 use wasm_bindgen_futures::spawn_local;
 use crate::requests::net_requests::{DeviceInfo, send_config_to_server, add_config_db, DeviceConfig};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Client {
+    name: String,
+}
+
+
+async fn get_clients_list() -> Result<Vec<Client>, JsValue> {
+    let window = window().ok_or_else(|| JsValue::from_str("No global `window` exists"))?;
+    let session_storage = window.session_storage()?.ok_or_else(|| JsValue::from_str("Failed to get session storage"))?;
+
+    let clients_json = session_storage.get_item("clients")?.ok_or_else(|| JsValue::from_str("No clients found in session storage"))?;
+
+    serde_json::from_str(&clients_json).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
 
 #[function_component(CreateConfig)]
 pub fn create_config() -> Html {
@@ -38,6 +55,8 @@ pub fn create_config() -> Html {
     let banked_configs = use_state(|| vec![]);
     let banked_vlans = use_state(|| vec![]);
     let banked_routes = use_state(|| vec![]);
+    let client_names = use_state(|| Vec::new());
+    let shared_link = use_state(|| String::new());
 
 
     let os_version = use_state(|| String::from(""));
@@ -76,6 +95,23 @@ pub fn create_config() -> Html {
     let dns_server1 = use_state(|| String::from(""));
     let dns_server2 = use_state(|| String::from(""));
 
+    let effect_names = client_names.clone();
+    use_effect_with((), move |_| {
+        let client_names = effect_names.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            match get_clients_list().await {
+                Ok(clients) => {
+                    client_names.set(clients);
+                },
+                Err(err) => {
+                    eprintln!("Failed to fetch clients: {:?}", err);
+                }
+            }
+        });
+
+        || () // Cleanup logic if necessary
+    });
+
     let generate_config_click = {
         let user_id = _user_id.clone();
         web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
@@ -85,12 +121,14 @@ pub fn create_config() -> Html {
         let call_config = (*configuration).clone();
         let call_hostname = (*hostname).clone();
         let call_location = (*location).clone();
+        let shared_link = shared_link.clone(); 
         Callback::from(move |_: MouseEvent| {
             web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
             let api_key = api_key.clone();
             let server_name = server_name.clone();
             let server_name = server_name.clone();
             let use_cloud_storage = use_cloud_storage.clone();
+            let shared_link = shared_link.clone();
             let mut base_url = String::new();
             match get_base_url() {
                 Ok(url) => {
@@ -119,7 +157,8 @@ pub fn create_config() -> Html {
             let future = async move {
                 match add_config_db(&server_name.clone().unwrap(), &device_info, &api_key.clone().unwrap(), &user_id.clone().unwrap()).await {
                     Ok(config_response) => {
-                        web_sys::console::log_1(&format!("accesslink here: {}", config_response.shared_link).into());
+                        shared_link.set(config_response.shared_link.clone());  // Set the shared link
+                        // web_sys::console::log_1(&format!("accesslink here: {}", config_response.shared_link).into());
                         let result = send_config_to_server(
                             &server_name.unwrap(),
                             config_response.config_id,
@@ -820,7 +859,7 @@ pub fn create_config() -> Html {
     let on_client_name_change = {
         let client_name = client_name.clone();
         Callback::from(move |e: InputEvent| {
-            let select: web_sys::HtmlSelectElement = e.target_unchecked_into();
+            let select: HtmlSelectElement = e.target_unchecked_into();
             client_name.set(select.value());
         })
     };
@@ -829,19 +868,16 @@ pub fn create_config() -> Html {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
                 <label style="margin-right: 10px;">{"Client Name:"}</label>
-                <select
-                    class="email-input border p-2 ml-2 rounded"
-                    value={(*client_name).clone()}
-                    oninput={on_client_name_change.clone()}
-                >
-                    <option value="Option1">{"Option1"}</option>
-                    <option value="Option2">{"Option2"}</option>
-                    <option value="Option3">{"Option3"}</option>
-                    // Add more options as needed
+                <select class="email-input border p-2 ml-2 rounded" oninput={on_client_name_change}>
+                    <option value="" disabled=true selected=true hidden=true>{"Select Client"}</option>
+                    {for client_names.iter().map(|client| html! {
+                        <option value={client.name.clone()}>{&client.name}</option>
+                    })}
                 </select>
             </div>
         </div>
     };
+    
 
     let on_device_type_change = {
         let device_type = device_type.clone();
@@ -1425,7 +1461,19 @@ pub fn create_config() -> Html {
         }} position={AccordionItemPosition::Middle}/>
     };
 
-
+    let link_display = if !shared_link.is_empty() {
+        html! {
+            <div class="link-display">
+                <p class="text-lg font-bold mb-2">{"Command to install config on switch:"}</p>
+                <div class="border border-gray-300 p-2 rounded">
+                    <p class="font-mono text-sm">{format!("copy {} running-config", *shared_link)}</p>
+                </div>
+            </div>
+        }
+    } else {
+        html! {}
+    };
+    
     html! {
         <>
         <div class="main-container">
@@ -1515,7 +1563,7 @@ pub fn create_config() -> Html {
                         <div>
                             <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mt-3 rounded" onclick={generate_config_click}>{"Generate Config"}</button>
                         </div>
-
+                        {link_display}
                         </div>
                     // </div>
                 }

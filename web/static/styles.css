@@ -519,6 +519,10 @@ body {
     margin-right: 10px; /* Add some space to the right of the image */
 }
 
+.link-display {
+    color: var(--text-color);
+}
+
 .artwork.playing {
     animation: spin 3s linear infinite;
   }
