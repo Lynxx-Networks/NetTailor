@@ -7,12 +7,10 @@ use yew::platform::spawn_local;
 use crate::requests::login_requests::{self, call_check_mfa_enabled};
 use crate::requests::login_requests::{ TimeZoneInfo, call_first_login_done, call_setup_timezone_info, call_verify_mfa, call_self_service_login_status, call_reset_password_create_code, ResetCodePayload, ResetForgotPasswordPayload, call_verify_and_reset_password, call_get_time_info, call_verify_key};
 use crate::components::context::{AppState, UIState};
-// use crate::setting_components::theme_options;
-// use yewdux::prelude::*;
 use md5;
 use yewdux::prelude::*;
 use crate::requests::login_requests::{AddUserRequest, call_add_login_user, call_azure_login_status};
-use crate::requests::setting_reqs::call_get_theme;
+use crate::requests::setting_reqs::{call_get_theme, call_get_clients};
 use crate::components::gen_funcs::{encode_password, validate_user_input};
 use crate::components::state_messages::UIStateMsg;
 use chrono_tz::{TZ_VARIANTS, Tz};
@@ -473,6 +471,27 @@ pub fn login() -> Html {
                                                                                 }
                                                                                 Err(e) => {
                                                                                     console::log_1(&format!("Error getting theme: {:?}", e).into());
+                                                                                }
+                                                                            }
+                                                                        });
+                                                                        let client_api = api_key.clone();
+                                                                        let client_server = server_name.clone();
+                                                                        // Fetch clients and store in session storage
+                                                                        wasm_bindgen_futures::spawn_local(async move {
+                                                                            match call_get_clients(client_server.clone(), client_api.clone()).await {
+                                                                                Ok(clients) => {
+                                                                                    if let Some(window) = web_sys::window() {
+                                                                                        if let Ok(Some(session_storage)) = window.session_storage() {
+                                                                                            match session_storage.set_item("clients", &serde_json::to_string(&clients).unwrap()) {
+                                                                                                Ok(_) => console::log_1(&"Clients stored in session storage".into()),
+                                                                                                Err(e) => console::log_1(&format!("Error storing clients in session storage: {:?}", e).into()),
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                    console::log_1(&"Clients fetched and stored successfully".into());
+                                                                                },
+                                                                                Err(e) => {
+                                                                                    console::log_1(&format!("Error fetching clients: {:?}", e).into());
                                                                                 }
                                                                             }
                                                                         });

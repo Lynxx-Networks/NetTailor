@@ -10,7 +10,6 @@ use crate::requests::pod_req::RecentEps;
 use super::search_nav::Search_nav;
 use crate::components::setting_components;
 use crate::components::empties::empty_message;
-// use crate::components::gen_funcs::check_auth;
 use wasm_bindgen::closure::Closure;
 use web_sys::{console, window};
 use wasm_bindgen::JsCast;

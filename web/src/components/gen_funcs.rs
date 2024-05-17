@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use ammonia::Builder;
 use web_sys::{DomParser, SupportedType};
-use web_sys::window;
 use wasm_bindgen::JsCast;
+use web_sys::Url;
 use argon2::{
     password_hash::{
         rand_core::OsRng,
@@ -155,64 +155,14 @@ pub fn validate_user_input(username: &str, password: &str, email: &str) -> Resul
     Ok(())
 }
 
-pub fn parse_opml(opml_content: &str) -> Vec<(String, String)> {
-    let parser = DomParser::new().unwrap();
-    let doc = parser.parse_from_string(opml_content, SupportedType::TextXml)
-        .unwrap()
-        .dyn_into::<web_sys::Document>()
-        .unwrap();
-
-    let mut podcasts = Vec::new();
-    let outlines = doc.query_selector_all("outline").unwrap();
-    for i in 0..outlines.length() {
-        if let Some(outline) = outlines.item(i).and_then(|o| o.dyn_into::<web_sys::Element>().ok()) {
-            let title = outline.get_attribute("title").unwrap_or_default();
-            let xml_url = outline.get_attribute("xmlUrl").unwrap_or_default();
-            podcasts.push((title, xml_url));
-        }
-    }
-    podcasts
-}
-
-pub fn format_time(time_in_seconds: f64) -> String {
-    let hours = (time_in_seconds / 3600.0).floor() as i32;
-    let minutes = ((time_in_seconds % 3600.0) / 60.0).floor() as i32;
-    let seconds = (time_in_seconds % 60.0).floor() as i32;
-    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
-}
-
-pub fn format_time_mins(time_in_minutes: i32) -> String {
-    let time_in_minutes = time_in_minutes as f64;
-    let hours = (time_in_minutes / 60.0).floor() as i32;
-    let minutes = (time_in_minutes % 60.0).floor() as i32;
-    format!("{:02}:{:02}", hours, minutes)
-}
-
-pub fn convert_time_to_seconds(time: &str) -> Result<u32, Box<dyn std::error::Error>> {
-    let parts: Vec<&str> = time.split(':').collect();
-
-    match parts.len() {
-        3 => {
-            let hours: u32 = parts[0].parse()?;
-            let minutes: u32 = parts[1].parse()?;
-            let seconds: u32 = parts[2].parse()?;
-            Ok(hours * 3600 + minutes * 60 + seconds)
-        }
-        2 => {
-            let minutes: u32 = parts[0].parse()?;
-            let seconds: u32 = parts[1].parse()?;
-            Ok(minutes * 60 + seconds)
-        }
-        1 => {
-            let seconds: u32 = parts[0].parse()?;
-            Ok(seconds)
-        }
-        _ => Err("Invalid time format".into()),
-    }
-}
-
 pub fn get_base_url() -> Result<String, &'static str> {
-    window()
-        .and_then(|win| win.location().href().ok())
-        .ok_or("Could not access the window's location")
+    let window = web_sys::window().ok_or("No global `window` exists")?;
+    let href = window.location().href().map_err(|_| "Failed to retrieve the href")?;
+
+    // Create a new URL object from the href
+    let url = Url::new(&href).map_err(|_| "Failed to construct URL object")?;
+
+    // Construct the base URL using the protocol and host
+    let base_url = format!("{}//{}", url.protocol(), url.host());
+    Ok(base_url)
 }

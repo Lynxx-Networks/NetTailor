@@ -1267,18 +1267,18 @@ def delete_scp_user(username):
     import subprocess
     subprocess.run(["userdel", "-r", username], check=True)
 
-def add_config_to_db(db, user_id, device_hostname, config_name, storage_location, file_path, url):
+def add_config_to_db(db, user_id, device_hostname, location, client_name, device_type, config_name, storage_location, file_path, url):
     from datetime import datetime, timedelta, timezone
 
     cursor = db.cursor()
     try:
         # Insert basic configuration data
         query = """
-        INSERT INTO Configurations (UserID, DeviceHostname, ConfigName, StorageLocation)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO Configurations (UserID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING ConfigID
         """
-        cursor.execute(query, (user_id, device_hostname, config_name, storage_location))
+        cursor.execute(query, (user_id, device_hostname, location, client_name, device_type, config_name, storage_location))
         config_id = cursor.fetchone()[0]
 
         # Append the config_id to file path to create unique filename

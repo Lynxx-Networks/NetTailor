@@ -1,16 +1,8 @@
 use std::rc::Rc;
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
 use yew::prelude::*;
-use yew_router::history::{BrowserHistory, History};
-use web_sys::{window, HtmlInputElement, MouseEvent};
+use yew_router::history::BrowserHistory;
 use yewdux::prelude::*;
-use crate::components::context::{AppState, UIState};
-use yew::Callback;
-use crate::requests::pod_req::{call_download_episode, call_queue_episode, call_save_episode, DownloadEpisodeRequest, Episode, EpisodeDownload, HistoryEpisode, QueuePodcastRequest, QueuedEpisode, SavePodcastRequest, SavedEpisode, call_remove_downloaded_episode, call_remove_queued_episode, call_remove_saved_episode};
-use crate::requests::search_pods::SearchEpisode;
-use std::any::Any;
-use crate::components::gen_funcs::format_time;
+use crate::components::context::AppState;
 
 
 #[allow(non_camel_case_types)]

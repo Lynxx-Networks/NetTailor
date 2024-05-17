@@ -11,6 +11,7 @@ use components::search::Search;
 use components::settings::Settings;
 use components::user_stats::UserStats;
 use components::create_config::CreateConfig;
+use components::edit_config::EditConfig;
 use components::home::Home;
 
 // Yew Imports
@@ -38,6 +39,7 @@ fn switch(route: Route) -> Html {
         Route::Home => html! { <Home /> },
         Route::NotFound => html! { <NotFound /> },
         Route::CreateConfig => html! { <CreateConfig /> },
+        Route::EditConfig => html! { <EditConfig /> },
         Route::ChangeServer => html! { <ChangeServer /> },
         Route::Saved => html! { <Saved /> },
         Route::Settings => html! { <Settings /> },

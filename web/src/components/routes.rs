@@ -19,6 +19,8 @@ pub enum Route {
     UserStats,
     #[at("/create_config")]
     CreateConfig,
+    #[at("/edit_config")]
+    EditConfig,
     #[at("/change_server")]
     ChangeServer,
     #[at("/sign_out")]
