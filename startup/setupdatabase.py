@@ -84,6 +84,15 @@ try:
     """)
 
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS SavedConfigurations (
+            SavedConfigID INT AUTO_INCREMENT PRIMARY KEY,
+            UserID INT,
+            SavedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (ConfigID) REFERENCES Users(ConfigID)
+        )
+    """)
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS SharedConfigs (
             SharedID INT AUTO_INCREMENT PRIMARY KEY,
             ConfigID INT,

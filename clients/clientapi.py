@@ -1403,6 +1403,41 @@ async def first_login_done(user_id: int, cnx=Depends(get_database_connection),
         raise HTTPException(status_code=403,
                             detail="You can only make sessions for yourself!")
 
+@app.get("/api/user/saved-configs/{user_id}")
+async def get_saved_configs(user_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(database_functions.get_api_key_from_header)):
+    is_valid_key = database_functions.verify_api_key(api_key, cnx)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    # Verify user ownership
+    if user_id != database_functions.get_user_id_from_api_key(api_key, cnx):
+        raise HTTPException(status_code=403, detail="Unauthorized access")
+
+    try:
+        database_functions.functions.get_saved_configs(cnx, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving saved configurations: {str(e)}")
+
+
+class SaveConfigRequest(BaseModel):
+    config_id: int
+
+@app.post("/api/user/{user_id}/save-config")
+async def save_config(user_id: int, request: SaveConfigRequest, cnx=Depends(get_database_connection), api_key: str = Depends(database_functions.get_api_key_from_header)):
+    is_valid_key = database_functions.verify_api_key(api_key, cnx)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    # Verify user ownership of the config
+    if not database_functions.is_config_owned_by_user(cnx, request.config_id, user_id):
+        raise HTTPException(status_code=403, detail="Unauthorized access")
+
+    try:
+        database_functions.save_user_config(cnx, user_id, request.config_id)
+        return {"message": "Configuration saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving configuration: {str(e)}")
+
 
 class BackupUser(BaseModel):
     user_id: int

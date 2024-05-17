@@ -33,7 +33,7 @@ pub fn user_stats() -> Html {
 
     // let error = use_state(|| None);
     let (post_state, _post_dispatch) = use_store::<AppState>();
-    let (audio_state, _audio_dispatch) = use_store::<UIState>();
+    let (_audio_state, _audio_dispatch) = use_store::<UIState>();
 
     // Fetch episodes on component mount
     {

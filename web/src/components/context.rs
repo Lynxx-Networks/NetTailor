@@ -1,15 +1,11 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 use serde::Deserialize;
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
 use crate::requests::login_requests::AddUserRequest;
 use crate::requests::login_requests::GetUserDetails;
 use crate::requests::login_requests::LoginServerRequest;
 use crate::requests::login_requests::{GetApiDetails, TimeZoneInfo};
 use crate::requests::setting_reqs::{AddSettingsUserRequest, EditSettingsUserRequest};
-use crate::requests::search_pods::{PodcastFeedResult, PodcastSearchResult};
-use crate::requests::pod_req::{Episode, RecentEps, Podcast, PodcastResponse, QueuedEpisodesResponse, SavedEpisodesResponse, HistoryDataResponse, EpisodeDownloadResponse, EpisodeMetadataResponse};
 use yewdux::prelude::*;
 use web_sys::HtmlAudioElement;
 use serde_json::{json, from_str};
@@ -64,22 +60,11 @@ pub struct AppState {
     pub server_details: Option<GetApiDetails>,
     pub error_message: Option<String>,
     pub info_message: Option<String>,
-    pub search_results: Option<PodcastSearchResult>,
-    pub podcast_feed_results: Option<PodcastFeedResult>,
-    pub server_feed_results: Option<RecentEps>,
-    pub queued_episodes: Option<QueuedEpisodesResponse>,
-    pub saved_episodes: Option<SavedEpisodesResponse>,
-    pub episode_history: Option<HistoryDataResponse>,
-    pub downloaded_episodes: Option<EpisodeDownloadResponse>,
-    pub episodes: Option<Episode>,
-    pub pods: Option<Podcast>,
-    pub podcast_feed_return: Option<PodcastResponse>,
     pub is_loading: Option<bool>,
     pub gravatar_url: Option<String>,
     #[serde(default)]
     pub expanded_descriptions: HashSet<String>,
     pub selected_theme: Option<String>,
-    pub fetched_episode: Option<EpisodeMetadataResponse>,
     pub selected_episode_id: Option<i32>,
     pub add_user_request: Option<AddUserRequest>,
     pub time_zone_setup: Option<TimeZoneInfo>,
@@ -121,54 +106,6 @@ pub struct UIState {
     pub episode_in_db: Option<bool>,
     // pub start_pos_sec: f64,
 }
-
-impl UIState {
-
-    pub fn update_current_time(&mut self, new_time_seconds: f64) {
-        self.current_time_seconds = new_time_seconds;
-
-        // Calculate formatted time
-        let hours = (new_time_seconds / 3600.0).floor() as i32;
-        let minutes = ((new_time_seconds % 3600.0) / 60.0).floor() as i32;
-        let seconds = (new_time_seconds % 60.0).floor() as i32;
-        self.current_time_formatted = format!("{:02}:{:02}:{:02}", hours, minutes, seconds);
-    }
-    pub fn toggle_playback(&mut self) {
-        web_sys::console::log_1(&format!("Current playing state: {:?}", self.audio_playing).into());
-        if let Some(audio) = &self.audio_element {
-            if self.audio_playing.unwrap_or(false) {
-                let _ = audio.pause();
-                self.audio_playing = Some(false);
-                web_sys::console::log_1(&"Paused audio".into());
-            } else {
-                let _ = audio.play();
-                self.audio_playing = Some(true);
-                web_sys::console::log_1(&"Playing audio".into());
-            }
-        }
-    }
-
-    pub fn set_audio_source(&mut self, src: String) {
-        if self.audio_element.is_none() {
-            self.audio_element = HtmlAudioElement::new().ok();
-            if let Some(audio) = &self.audio_element {
-                let closure = Closure::wrap(Box::new(move || {
-                    // Code to handle the audio being ready to play
-                }) as Box<dyn Fn()>);
-                audio.add_event_listener_with_callback("canplay", closure.as_ref().unchecked_ref()).unwrap();
-                closure.forget(); // Prevents the closure from being garbage collected
-            }
-        }
-        if let Some(audio) = &self.audio_element {
-            audio.set_src(&src);
-        }
-    }
-
-    pub fn toggle_expanded(&mut self) {
-        self.is_expanded = !self.is_expanded;
-    }
-}
-
 
 
 

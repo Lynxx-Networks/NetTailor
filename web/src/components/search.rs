@@ -2,7 +2,6 @@ use yew::{function_component, Html, html};
 use yew::prelude::*;
 use super::app_drawer::App_drawer;
 use yewdux::prelude::*;
-use yew_router::history::BrowserHistory;
 use crate::components::context::{AppState, UIState};
 use wasm_bindgen::closure::Closure;
 use web_sys::{console, window};
@@ -20,15 +19,8 @@ pub struct SearchProps {
 pub fn search(_props: &SearchProps) -> Html {
     let (state, dispatch) = use_store::<AppState>();
     let effect_dispatch = dispatch.clone();
-    let history = BrowserHistory::new();
-
-    let input_ref = use_node_ref();
-    let input_ref_clone1 = input_ref.clone();
-    let input_ref_clone2 = input_ref.clone();
     let container_ref = use_node_ref();
-    let container_ref_clone1 = container_ref.clone();
     let form_ref = NodeRef::default();
-    let form_ref_clone1 = form_ref.clone();
 
     console::log_1(&format!("About to run check auth").into());
     // check_auth(effect_dispatch);
@@ -66,7 +58,7 @@ pub fn search(_props: &SearchProps) -> Html {
         || ()
     });
     
-    let (post_state, _post_dispatch) = use_store::<AppState>();
+    let (_post_state, _post_dispatch) = use_store::<AppState>();
     let (audio_state, audio_dispatch) = use_store::<UIState>();
     let error_message = audio_state.error_message.clone();
     let info_message = audio_state.info_message.clone();
@@ -124,7 +116,7 @@ pub fn search(_props: &SearchProps) -> Html {
         <>
         <div class="search-page-container flex flex-col">
             <div class="search-container" ref={container_ref.clone()}>
-                <form class="search-page-input" onsubmit={on_submit} ref={form_ref.clone()}>
+                <form class="config-page-input" onsubmit={on_submit} ref={form_ref.clone()}>
                     <div class="flex space-x-4">
                         <div class="relative">
                             <button id="dropdown1Button" type="button" onclick={toggle_dropdown1.clone()} class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">

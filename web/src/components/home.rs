@@ -2,7 +2,6 @@ use yew::{function_component, Html, html};
 use yew::prelude::*;
 use super::app_drawer::App_drawer;
 use yewdux::prelude::*;
-use yew_router::history::BrowserHistory;
 use crate::components::context::{AppState, UIState};
 use super::search_nav::Search_nav;
 use wasm_bindgen::closure::Closure;
@@ -16,7 +15,6 @@ use crate::components::state_messages::UIStateMsg;
 pub fn home() -> Html {
     let (state, dispatch) = use_store::<AppState>();
     let effect_dispatch = dispatch.clone();
-    let history = BrowserHistory::new();
 
     console::log_1(&format!("About to run check auth").into());
     // check_auth(effect_dispatch);
@@ -54,7 +52,7 @@ pub fn home() -> Html {
         || ()
     });
     
-    let (post_state, _post_dispatch) = use_store::<AppState>();
+    let (_post_state, _post_dispatch) = use_store::<AppState>();
     let (audio_state, audio_dispatch) = use_store::<UIState>();
     let error_message = audio_state.error_message.clone();
     let info_message = audio_state.info_message.clone();
