@@ -15,7 +15,7 @@ export API_URL=$API_URL
 export NETTAILOR_PORT=$NETTAILOR_PORT
 export PROXY_PROTOCOL=$PROXY_PROTOCOL
 export DEBUG_MODE=${DEBUG_MODE:-'False'}
-
+echo "Environment Variables:"
 if [[ $FULLNAME == 'nettailor Admin' ]]; then
   echo "Admin User Information:"
   echo "FULLNAME: $FULLNAME"

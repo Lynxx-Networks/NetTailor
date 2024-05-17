@@ -7,8 +7,6 @@ use yew::platform::spawn_local;
 use crate::requests::login_requests::{self, call_check_mfa_enabled};
 use crate::requests::login_requests::{ TimeZoneInfo, call_first_login_done, call_setup_timezone_info, call_verify_mfa, call_self_service_login_status, call_reset_password_create_code, ResetCodePayload, ResetForgotPasswordPayload, call_verify_and_reset_password, call_get_time_info, call_verify_key};
 use crate::components::context::{AppState, UIState};
-// use crate::setting_components::theme_options;
-// use yewdux::prelude::*;
 use md5;
 use yewdux::prelude::*;
 use crate::requests::login_requests::{AddUserRequest, call_add_login_user, call_azure_login_status};

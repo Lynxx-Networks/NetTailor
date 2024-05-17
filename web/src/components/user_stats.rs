@@ -6,8 +6,7 @@ use crate::requests::stat_reqs;
 use web_sys::console;
 use yewdux::prelude::*;
 use crate::components::context::{AppState, UIState, UserStatsStore};
-use crate::components::gen_funcs::{format_date, format_time_mins};
-// use crate::requests::login_requests::use_check_authentication;
+use crate::components::gen_funcs::format_date;
 
 
 #[function_component(UserStats)]
@@ -94,7 +93,6 @@ pub fn user_stats() -> Html {
                         {
                             if let Some(stats) = user_stats {
                                 let formatted_date = format_date(&stats.UserCreated);
-                                let time_formatted = format_time_mins(stats.TimeListened);
                                 html! {
                                     <>
                                         <div class="stats-card">
@@ -103,29 +101,10 @@ pub fn user_stats() -> Html {
                                         </div>
 
                                         <div class="stats-card">
-                                            <p class="stats-label">{"Podcasts Played"}</p>
+                                            <p class="stats-label">{"Configs Created"}</p>
                                             <p class="stats-value">{ &stats.PodcastsPlayed }</p>
                                         </div>
 
-                                        <div class="stats-card">
-                                            <p class="stats-label">{"Time Listened"}</p>
-                                            <p class="stats-value">{ &time_formatted }</p>
-                                        </div>
-
-                                        <div class="stats-card">
-                                            <p class="stats-label">{"Podcasts Added"}</p>
-                                            <p class="stats-value">{ &stats.PodcastsAdded }</p>
-                                        </div>
-
-                                        <div class="stats-card">
-                                            <p class="stats-label">{"Episodes Saved"}</p>
-                                            <p class="stats-value">{ &stats.EpisodesSaved }</p>
-                                        </div>
-
-                                        <div class="stats-card">
-                                            <p class="stats-label">{"Episodes Downloaded"}</p>
-                                            <p class="stats-value">{ &stats.EpisodesDownloaded }</p>
-                                        </div>
                                         <div class="large-card col-span-1 md:col-span-3">
                                             <img src="static/assets/favicon.png" alt="Pinepods Logo" class="large-card-image"/>
                                             <p class="large-card-paragraph item_container-text">{"Thanks for using Pinepods! This app was born from a love for podcasts, of homelabs, and a desire to have a secure and central location to manage personal data. Feel free to reach out for questions and open an issue if you have ideas for new features. Pull Requests on this software are welcome and encouraged. If you feel that you've gotten use out of this software and are thankful for it's existence donations to my Buymeacoffee are welcome but never required. Lastly, this app will ALWAYS remain open source."}</p>

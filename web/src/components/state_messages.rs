@@ -1,6 +1,5 @@
 use yewdux::prelude::*;
-use crate::components::context::{AppState, UIState};
-use crate::components::gen_funcs::{sanitize_html_with_blank_target, truncate_description, format_datetime, parse_date, DateFormat};
+use crate::components::context::UIState;
 use std::rc::Rc;
 
 pub enum UIStateMsg {

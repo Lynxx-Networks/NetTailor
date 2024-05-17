@@ -1,7 +1,4 @@
-use std::default;
-use gloo_utils::document;
 use wasm_bindgen::JsValue;
-use gloo::history::Location;
 use serde::{Deserialize, Serialize};
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
