@@ -519,6 +519,10 @@ body {
     margin-right: 10px; /* Add some space to the right of the image */
 }
 
+.link-display {
+    color: var(--text-color);
+}
+
 .artwork.playing {
     animation: spin 3s linear infinite;
   }
@@ -707,6 +711,25 @@ body {
     margin-right: 10px;
 }
 
+h3 {
+    color: var(--text-color);
+    font-size: medium;
+}
+
+.code-block {
+    background-color: #000000;
+    color: white;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.code-block-container {
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    padding: 20px;
+}
+
 button.item-container-action-button.item-container-action-button {
     background-color: var(--alert-color);
 }
@@ -817,9 +840,7 @@ button.item-container-action-button.item-container-action-button {
 .search-container {
     position: relative;
     display: flex;
-    justify-content: center;
     align-items: center;
-    height: 100vh;
     padding-top: 120px;
 }
 
@@ -1195,6 +1216,12 @@ button.item-container-action-button.item-container-action-button {
     padding: 10px; /* Optional: Adds some padding inside the textarea */
     border: 1px solid #ccc; /* Optional: Adds a light border around the textarea */
     resize: none; /* Optional: Prevents resizing the textarea */
+}
+
+.config-form label {
+    display: inline-block;
+    width: 150px;
+    margin-right: 10px;
 }
 
 

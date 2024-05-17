@@ -19,6 +19,9 @@ pub struct UploadConfig {
 pub struct DeviceInfo {
     pub user_id: i32,
     pub device_hostname: String,
+    pub location: String,
+    pub client_name: String,
+    pub device_type: String,
     pub config_name: String,
     pub url: String,
 }

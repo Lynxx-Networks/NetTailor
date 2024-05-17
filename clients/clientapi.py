@@ -50,6 +50,16 @@ import database_functions.functions
 import database_functions.auth_functions
 import database_functions.app_functions
 
+
+def load_client_list():
+    file_path = '/opt/nettailor/clients_list.json'
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    # Ensure the data is structured as a list of objects with a 'name' key
+    return data['clients']
+
+client_list = load_client_list()
+
 database_type = str(os.getenv('DB_TYPE', 'mariadb'))
 if database_type == "postgresql":
     print(f"You've selected a postgresql database.")
@@ -1464,6 +1474,9 @@ def restore_server_fun(database_pass: str, server_restore_data: str):
 class DeviceConfig(BaseModel):
     user_id: int
     device_hostname: str
+    location: str
+    client_name: str
+    device_type: str
     config_name: str
     url: str
 
@@ -1491,7 +1504,7 @@ async def add_config(data: DeviceConfig, cnx=Depends(get_database_connection),
     # Call the database function to add the config
     # Add config and get shared details
     config_id, shared_link, access_key = database_functions.functions.add_config_to_db(
-        cnx, data.user_id, data.device_hostname, data.config_name, storage_location, file_path, data.url
+        cnx, data.user_id, data.device_hostname, data.location, data.client_name, data.device_type, data.config_name, storage_location, file_path, data.url
     )
     if config_id:
         return {
@@ -1560,7 +1573,17 @@ async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_
     except IOError as e:
         raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
 
+@app.get("/api/data/clients")
+async def get_clients(api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
 
+    try:
+        clients = load_client_list()
+        return JSONResponse(content={"clients": clients})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def async_tasks():
@@ -1590,6 +1613,4 @@ if __name__ == '__main__':
         host="0.0.0.0",
         port=args.port,
         log_config=config_file
-        # ssl_keyfile="/opt/pinepods/certs/key.pem",
-        # ssl_certfile="/opt/pinepods/certs/cert.pem"
     )

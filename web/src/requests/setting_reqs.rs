@@ -28,6 +28,35 @@ pub async fn call_get_theme(server_name: String, api_key: String, user_id: &i32)
     }
 }
 
+#[derive(Deserialize, Debug, PartialEq, Clone)]
+pub struct GetClientsResponse {
+    clients: Vec<Client>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct Client {
+    name: String,
+}
+
+pub async fn call_get_clients(server_name: String, api_key: String) -> Result<Vec<Client>, anyhow::Error> {
+    let url = format!("{}/api/data/clients", server_name);
+    let api_key_ref = api_key.as_str();
+
+    let response = Request::get(&url)
+        .header("Api-Key", api_key_ref)
+        .header("Content-Type", "application/json")
+        .send()
+        .await?;
+
+    if response.ok() {
+        let response_body = response.json::<GetClientsResponse>().await?;
+        Ok(response_body.clients)
+    } else {
+        console::log_1(&format!("Error fetching clients: {}", response.status_text()).into());
+        Err(anyhow::Error::msg(format!("Error fetching clients. Server response: {}", response.status_text())))
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct SetThemeRequest {
     pub(crate) user_id: i32,

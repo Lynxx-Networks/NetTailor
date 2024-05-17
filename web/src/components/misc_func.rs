@@ -285,6 +285,7 @@ service timestamps debug datetime msec\n\
             spanning-tree mode rapid-pvst\n\
             spanning-tree vlan {} priority 4096\n\
             enable secret 9 {}\n\
+            service password-encryption\n\
             username {} privilege 15 secret 9 {}\n\
             aaa new-model\n\
             aaa group server tacacs+ {}\n \

@@ -1,15 +1,5 @@
 
-use std::rc::Rc;
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
 use yew::prelude::*;
-use yew_router::history::{BrowserHistory, History};
-use web_sys::{window, HtmlInputElement, MouseEvent};
-use yewdux::prelude::*;
-use crate::components::context::{AppState, UIState};
-use yew::Callback;
-use std::any::Any;
-use crate::components::gen_funcs::format_time;
 
 pub fn empty_message(header: &str, paragraph: &str) -> Html {
     html! {

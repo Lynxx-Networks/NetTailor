@@ -3,10 +3,8 @@ use serde::{Deserialize, Serialize};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use wasm_bindgen::JsValue;
-
 use yew_router::history::{BrowserHistory, History};
 use yewdux::Dispatch;
-// Add imports for your context modules
 use crate::components::context::{AppState};
 use anyhow::{Error, Context};
 use web_sys::console;
