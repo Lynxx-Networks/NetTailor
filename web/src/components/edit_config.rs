@@ -33,8 +33,8 @@ async fn get_clients_list() -> Result<Vec<Client>, JsValue> {
 }
 
 
-#[function_component(CreateConfig)]
-pub fn create_config() -> Html {
+#[function_component(EditConfig)]
+pub fn edit_config() -> Html {
     let (state, dispatch) = use_store::<AppState>();
     let effect_dispatch = dispatch.clone();
     let history = BrowserHistory::new();
@@ -117,9 +117,9 @@ pub fn create_config() -> Html {
         let use_cloud_storage = cloud_storage.clone(); // State that determines whether to use cloud or local storage
         let call_config = (*configuration).clone();
         let call_hostname = (*hostname).clone();
-        let call_location = (*location).clone();
         let client_name = (*client_name).clone();
         let device_type = (*device_type).clone();
+        let call_location = (*location).clone();
         let shared_link = shared_link.clone(); 
         Callback::from(move |_: MouseEvent| {
             web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());

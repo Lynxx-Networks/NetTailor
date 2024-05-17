@@ -1,11 +1,8 @@
 use yew::prelude::*;
-use wasm_bindgen::JsCast;
 use yewdux::prelude::*;
 use crate::components::context::AppState;
 use yew::platform::spawn_local;
-use web_sys::{window, Blob, Url, BlobPropertyBag};
-use wasm_bindgen::JsValue;
-use crate::requests::setting_reqs::{call_backup_user, ExternalAuthResponse, ExternalAuthRequest, call_add_external_auth, ExternalAuthSetting, call_get_all_external_auths};
+use crate::requests::setting_reqs::{ExternalAuthRequest, call_add_external_auth, ExternalAuthSetting, call_get_all_external_auths};
 
 #[function_component(ExternalAuthSetup)]
 pub fn external_auth() -> Html {
