@@ -8,7 +8,7 @@ use crate::requests::login_requests::GetUserDetails;
 use crate::requests::login_requests::LoginServerRequest;
 use crate::requests::login_requests::{GetApiDetails, TimeZoneInfo};
 use crate::requests::setting_reqs::{AddSettingsUserRequest, EditSettingsUserRequest};
-use crate::requests::search_pods::{PodcastFeedResult, PodcastSearchResult, SearchResponse};
+use crate::requests::search_pods::{PodcastFeedResult, PodcastSearchResult};
 use crate::requests::pod_req::{Episode, RecentEps, Podcast, PodcastResponse, QueuedEpisodesResponse, SavedEpisodesResponse, HistoryDataResponse, EpisodeDownloadResponse, EpisodeMetadataResponse};
 use yewdux::prelude::*;
 use web_sys::HtmlAudioElement;
@@ -71,7 +71,6 @@ pub struct AppState {
     pub saved_episodes: Option<SavedEpisodesResponse>,
     pub episode_history: Option<HistoryDataResponse>,
     pub downloaded_episodes: Option<EpisodeDownloadResponse>,
-    pub search_episodes: Option<SearchResponse>,
     pub episodes: Option<Episode>,
     pub pods: Option<Podcast>,
     pub podcast_feed_return: Option<PodcastResponse>,

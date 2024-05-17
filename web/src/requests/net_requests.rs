@@ -75,7 +75,7 @@ pub async fn send_config_to_server(server_uri: &str, config_id: i32, device_conf
     }
 }
 
-pub async fn add_config_db(db_uri: &str, device_config: &DeviceInfo, api_key: &Option<String>, user_id: &i32) -> Result<ConfigResponse, Error> {
+pub async fn add_config_db(db_uri: &str, device_config: &DeviceInfo, api_key: &Option<String>) -> Result<ConfigResponse, Error> {
     let url = format!("{}/api/data/add_config", db_uri);
     let json_body = serde_json::to_string(device_config)?;
     let api_key_ref = api_key.as_deref().ok_or_else(|| anyhow::Error::msg("API key is missing"))?;
