@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-use ammonia::Builder;
-use web_sys::{DomParser, SupportedType};
-use wasm_bindgen::JsCast;
+
 use web_sys::Url;
 use argon2::{
     password_hash::{
@@ -10,8 +7,6 @@ use argon2::{
     },
     Argon2
 };
-use chrono::{DateTime, NaiveDateTime, Utc, TimeZone};
-use chrono_tz::Tz;
 
 
 pub fn format_date(date_str: &str) -> String {

@@ -1,9 +1,5 @@
-use web_sys::{window, HtmlElement, HtmlInputElement, InputEvent};
+use web_sys::{window, HtmlElement};
 use wasm_bindgen::JsCast;
-use std::rc::Rc;
-use yew::prelude::*;
-use std::cell::RefCell;
-use std::cell::Cell;
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 
@@ -65,25 +61,17 @@ pub fn change_theme(theme: &str) {
 }
 
 pub fn generate_config(
-    os_version: &str,
     hostname: &str,
     tacacs_server: &str,
     ise_server: &str,
     timezone: &str,
-    boot_bin: &str,
     switch_number: &str,
-    model: &str,
-    vtp_domain: &str,
     auvik_collector: &str,
-    crypto_auth_block: &str,
     vlan_range: &str,
     encrypted_user_pass: &str,
     vlan_definitions: &str,
-    class_map_definitions: &str,
-    policy_map_definitions: &str,
     client_name: &str,
     device_type: &str,
-    service_type: &str,
     device_model: &str,
     client_domain: &str,
     device_ip: &str,

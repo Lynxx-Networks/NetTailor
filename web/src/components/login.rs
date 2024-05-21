@@ -28,35 +28,6 @@ fn generate_gravatar_url(email: &Option<String>, size: usize) -> String {
     format!("https://gravatar.com/avatar/{}?s={}", hash, size)
 }
 
-// fn send_code_to_backend<F>(server_name: String, code: &str, callback: F) 
-// where
-//     F: FnOnce(Result<String, String>) + 'static {
-//     let request_url = format!("{}/api/auth/azure/callback", server_name);
-//     let request_body = serde_json::to_string(&json!({ "code": code })).unwrap();
-
-//     let request = Request::post(&request_url)
-//         .header("Content-Type", "application/json")
-//         .body(request_body);
-
-//     match request {
-//         Ok(req) => {
-//             spawn_local(async move {
-//                 let response = req.send().await;
-//                 match response {
-//                     Ok(resp) => {
-//                         if resp.status() == 200 {
-//                             callback(Ok("session_token".to_string())) // Simulated session token
-//                         } else {
-//                             callback(Err("Failed to authenticate".to_string()))
-//                         }
-//                     }
-//                     Err(_) => callback(Err("Network error".to_string()))
-//                 }
-//             });
-//         },
-//         Err(_) => callback(Err("Failed to create request".to_string()))
-//     }
-// }
 
 #[function_component(Login)]
 pub fn login() -> Html {
@@ -86,7 +57,6 @@ pub fn login() -> Html {
     // Define the initial state
     let page_state = use_state(|| PageState::Default);
     let self_service_enabled = use_state(|| false); // State to store self-service status
-    let azure_login_enabled = use_state(|| false); // State to store self-service status
 
     let effect_self_service = self_service_enabled.clone();
     use_effect_with(
@@ -243,9 +213,6 @@ pub fn login() -> Html {
         })
     };
 
-
-
-    let azure_history = history.clone();
     use_effect_with((), move |_| {
         if let Some(window) = web_sys::window() {
             let location = window.location();
@@ -396,10 +363,6 @@ pub fn login() -> Html {
                         if let Ok(Some(user_state)) = storage.get_item("userState") {
                             let app_state_result = AppState::deserialize(&user_state);
 
-                                        // Attempt to retrieve both types of authentication details
-                            let standard_auth = storage.get_item("userAuthState");
-                            let session_auth = storage.get_item("userSessionAuthState");
-                            
                             if let Ok(Some(auth_state)) = storage.get_item("userAuthState") {
                                 match AppState::deserialize(&auth_state) {
                                     Ok(auth_details) => { // Successful deserialization of auth state
@@ -578,25 +541,9 @@ pub fn login() -> Html {
         })
     };
 
-    let history_clone_azure = history.clone();
-    let submit_state_azure = page_state.clone();
-    let call_server_name_azure = temp_server_name.clone();
-    let call_api_key_azure = temp_api_key.clone();
-    let call_user_id_azure = temp_user_id.clone();
-    let submit_post_state_azure = _dispatch.clone();
 
     let on_submit_azure = {
-        let submit_dispatch = dispatch.clone();
         Callback::from(move |_| {
-            let history = history_clone_azure.clone();
-            let dispatch = submit_dispatch.clone();
-            let post_state = submit_post_state_azure.clone();
-            let server_name = call_server_name_azure.clone();
-            let page_state = submit_state_azure.clone();
-            let temp_server_name = call_server_name_azure.clone();
-            let temp_api_key = call_api_key_azure.clone();
-            let temp_user_id = call_user_id_azure.clone();
-
             // Retrieve the Azure Auth values from local storage
             let window = web_sys::window().expect("no global `window` exists");
             let storage = window.local_storage().unwrap().expect("should have local storage");
@@ -1615,14 +1562,6 @@ pub fn login() -> Html {
             password.set(e.target_unchecked_into::<web_sys::HtmlInputElement>().value());
         })
     };
-
-    let history_clone = history.clone();
-    // let app_state_clone = app_state.clone();
-    let submit_state = page_state.clone();
-    let call_server_name = temp_server_name.clone();
-    let call_api_key = temp_api_key.clone();
-    let call_user_id = temp_user_id.clone();
-    let submit_post_state = _dispatch.clone();
 
     let history_clone = history.clone();
     // let app_state_clone = app_state.clone();
