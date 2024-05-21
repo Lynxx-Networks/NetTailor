@@ -34,6 +34,10 @@ body {
     padding: 0 20px;
 }
 
+.config-container {
+    display: flex;
+}
+
 .item_container-text.episode-description-container a {
     color: var(--link-color); /* Replace #yourColorCode with the color you want */
     text-decoration: none; /* Example property, adjust as needed */
@@ -783,7 +787,7 @@ button.item-container-action-button.item-container-action-button {
 
 .config-card {
     background-color: var(--secondary-background);
-    padding: 2rem;
+    padding: 1rem;
     border-radius: 0.5rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     text-align: center;
@@ -807,9 +811,9 @@ button.item-container-action-button.item-container-action-button {
     transition: all 1s ease-in-out;
     position: absolute;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, 0); /* Adjusted translate to fix vertical alignment */
     z-index: 1;
-  }
+}
 
 
 .stats-card {

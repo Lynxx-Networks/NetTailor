@@ -1404,7 +1404,7 @@ async def first_login_done(user_id: int, cnx=Depends(get_database_connection),
                             detail="You can only make sessions for yourself!")
 
 @app.get("/api/user/saved-configs/{user_id}")
-async def get_saved_configs(user_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(database_functions.get_api_key_from_header)):
+async def get_saved_configs(user_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
     is_valid_key = database_functions.verify_api_key(api_key, cnx)
     if not is_valid_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
@@ -1423,7 +1423,7 @@ class SaveConfigRequest(BaseModel):
     config_id: int
 
 @app.post("/api/user/{user_id}/save-config")
-async def save_config(user_id: int, request: SaveConfigRequest, cnx=Depends(get_database_connection), api_key: str = Depends(database_functions.get_api_key_from_header)):
+async def save_config(user_id: int, request: SaveConfigRequest, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
     is_valid_key = database_functions.verify_api_key(api_key, cnx)
     if not is_valid_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
