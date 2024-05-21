@@ -211,3 +211,37 @@ pub async fn get_saved_configs_dummy(api_uri: &str, user_id: i32, api_key: &Opti
 
     Ok(configs)
 }
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Config {
+    pub config_id: i32,
+    pub device_hostname: String,
+    pub client_name: String,
+    pub location: String,
+    pub device_type: String,
+    pub config_name: String,
+    pub created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConfigsResponse {
+    configs: Vec<Config>,
+}
+
+pub async fn get_config_list(api_uri: &str, api_key: &Option<String>) -> Result<Vec<Config>, Error> {
+    let url = format!("{}/api/data/get_config_list", api_uri);
+    let api_key_ref = api_key.as_deref().ok_or_else(|| anyhow::Error::msg("API key is missing"))?;
+
+    let response = Request::get(&url)
+        .header("Api-Key", api_key_ref)
+        .send()
+        .await?;
+
+    if response.ok() {
+        let configs_response = response.json::<Vec<Config>>().await?;
+        Ok(configs_response)
+    } else {
+        Err(Error::msg(format!("Error retrieving configuration list: {}", response.status())))
+    }
+}
