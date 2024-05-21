@@ -1315,6 +1315,17 @@ def add_config_to_db(db, user_id, device_hostname, location, client_name, device
     finally:
         cursor.close()
 
+def edit_config(db, config_id):
+    # Update the last updated time
+    cursor = db.cursor()
+    try:
+        query = "UPDATE Configurations SET UpdatedAt = NOW() WHERE ConfigID = %s"
+        cursor.execute(query, (config_id,))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Failed to update configuration: {e}")
+
 
 def get_shared_configuration(db, config_id, access_key):
     from datetime import datetime, timezone
@@ -1356,23 +1367,57 @@ def get_shared_configuration(db, config_id, access_key):
     finally:
         cursor.close()
 
+def get_configuration(cnx, config_id):
+    query = """
+    SELECT FilePath
+    FROM Configurations
+    WHERE ConfigID = %s
+    LIMIT 1
+    """
+    cursor = cnx.cursor()
+    try:
+        cursor.execute(query, (config_id,))
+        result = cursor.fetchone()
+        if not result:
+            return None
+        return result[0], None
+    except Exception as e:
+        return None, f"Databse query error: {str(e)}"
+
+def get_config_count(cnx):
+    cursor = cnx.cursor()
+    query = "SELECT COUNT(*) FROM Configurations"
+    cursor.execute(query)
+    count = cursor.fetchone()[0]
+    cursor.close()
+    return count
+
+def db_get_config_info(cnx, config_id):
+    cursor = cnx.cursor()
+    query = """SELECT ConfigID, UserID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation, FilePath, CreatedAt, UpdatedAt
+FROM Configurations WHERE ConfigID = %s"""
+    cursor.execute(query, (config_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    return result
+
+def get_config_list(cnx):
+    cursor = cnx.cursor()
+    query = """SELECT ConfigID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation, FilePath, CreatedAt, UpdatedAt
+FROM Configurations"""
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    return result
 
 def get_user_configs(cnx, user_id):
-    cursor = cnx.cursor(dictionary=True)
-    query = """
-    SELECT ConfigID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation, FilePath, CreatedAt
-    FROM Configurations
-    WHERE UserID = %s
-    """
-    try:
-        cursor.execute(query, (user_id,))
-        configs = cursor.fetchall()
-        return configs
-    except Exception as e:
-        print("Error fetching user configurations:", e)
-        return []
-    finally:
-        cursor.close()
+    cursor = cnx.cursor()
+    query = """SELECT ConfigID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation, FilePath, CreatedAt, UpdatedAt
+FROM Configurations WHERE UserID = %s"""
+    cursor.execute(query, (user_id,))
+    result = cursor.fetchall()
+    cursor.close()
+    return result
 
 def get_saved_configs(cnx, user_id):
     try:
@@ -1403,3 +1448,4 @@ def save_user_config(cnx, user_id, config_id):
         raise e
     finally:
         cursor.close()
+

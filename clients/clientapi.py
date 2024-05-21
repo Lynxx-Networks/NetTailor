@@ -386,8 +386,7 @@ async def api_config(api_key: str = Depends(get_api_key_from_header), cnx=Depend
     else:
         raise HTTPException(status_code=403,
                             detail="Your API key is either invalid or does not have correct permission")
-
-
+    
 @app.get("/api/data/user_details/{username}")
 async def api_get_user_details(username: str, cnx=Depends(get_database_connection),
                                api_key: str = Depends(get_api_key_from_header)):
@@ -1595,7 +1594,41 @@ async def upload_local(
 
     return {"success": True, "message": "Configuration uploaded locally"}
 
-@app.get("/api/data/{config_id}/{access_key}")
+@app.put("/api/data/edit_config/{config_id}")
+async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_database_connection),
+                      api_key: str = Depends(get_api_key_from_header)):
+    # Validate API Key
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    # Fetch configuration information
+    query = "SELECT FilePath FROM Configurations WHERE ConfigID = %s LIMIT 1"
+    cursor = cnx.cursor()
+    cursor.execute(query, (config_id,))
+    file_path = cursor.fetchone()
+
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    file_path = file_path[0]
+
+    # Call the database function to edit the updated at time
+    database_functions.functions.edit_config(cnx, config_id)
+
+    # Ensure the directory for file_path exists
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    print(file_path)
+
+    try:
+        with open(file_path, "w") as file:
+            file.write(data.config_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
+    
+    return {"success": True, "message": "Configuration edited successfully"}
+
+@app.get("/api/data/get_config_for_cisco/{config_id}/{access_key}")
 async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_database_connection)):
     file_path, error = database_functions.functions.get_shared_configuration(cnx, config_id, access_key)
     if error:
@@ -1607,6 +1640,107 @@ async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_
         return Response(content=config_content, media_type="text/plain")
     except IOError as e:
         raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
+    
+@app.get("/api/data/get_config_raw/{config_id}")
+async def get_config_raw(config_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    file_path, error = database_functions.functions.get_configuration(cnx, config_id)
+    if error:
+        raise HTTPException(status_code=404, detail=f"Failed to retrieve config: {error}")
+    
+    try:
+        with open(file_path, 'r') as file:
+            config_content = file.read()
+        return Response(content=config_content, media_type="text/plain")
+    except IOError as e:
+        raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
+    
+@app.get("/api/data/get_config_info/{config_id}")
+async def get_config_info(config_id: int, api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    config_info = database_functions.functions.db_get_config_info(cnx, config_id)
+    if config_info:
+        #snake case the keys
+        config_json = {
+            "config_id": config_info[0],
+            "user_id": config_info[1],
+            "device_hostname": config_info[2],
+            "client_name": config_info[3],
+            "location": config_info[4],
+            "device_type": config_info[5],
+            "config_name": config_info[6],
+            "storage_location": config_info[7],
+            "file_path": config_info[8],
+            "created_at": config_info[9],
+            "updated_at": config_info[10]
+        }
+        return config_json
+    else:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    
+@app.get("/api/data/get_config_list")
+async def get_config_list(api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    config_list = database_functions.functions.get_config_list(cnx)
+    config_list_json = []
+    for config in config_list:
+        #config id, hostname, clientname, location, type, configname, createdat should be all we need for the get_all
+        config_json = {
+            "config_id": config[0],
+            "device_hostname": config[2],
+            "client_name": config[3],
+            "location": config[4],
+            "device_type": config[5],
+            "config_name": config[6],
+            "created_at": config[9],
+        }
+        config_list_json.append(config_json)
+    if config_list:
+        return config_list_json
+    else:
+        raise HTTPException(status_code=404, detail="Configurations not found")
+    
+@app.get("/api/data/get_user_configs/{user_id}")
+async def get_user_configs(user_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    user_configs = database_functions.functions.get_user_configs(cnx, user_id)
+    user_configs_json = []
+    for config in user_configs:
+        config_json = {
+            "config_id": config[0],
+            "device_hostname": config[2],
+            "client_name": config[3],
+            "location": config[4],
+            "device_type": config[5],
+            "config_name": config[6],
+            "created_at": config[9],
+        }
+        user_configs_json.append(config_json)
+    if user_configs:
+        return user_configs_json
+    else:
+        raise HTTPException(status_code=404, detail="Configurations not found")
+    
+@app.get("/api/data/config_count")
+async def api_config_count(api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    config_count = database_functions.functions.get_config_count(cnx)
+    return {"config_count": config_count}
 
 @app.get("/api/data/clients")
 async def get_clients(api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
