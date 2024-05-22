@@ -5,11 +5,15 @@ A web based app capable of building and serving network configuration files
 
 - [ ] create config value checks to verify valid configs
 
-- [ ] get edit config button working
+- [x] Basic Userstats page
 
-- [ ] get save config button created and working on search configs
+- [x] get edit config button working
 
-- [ ] get remove saved button working on save page
+- [x] get save config button created and working on search configs
+
+- [x] get remove saved button working on save page
+
+- [x] Make Functional edit page
 
 - [ ] verify all functionality
 

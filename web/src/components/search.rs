@@ -4,9 +4,10 @@ use super::app_drawer::App_drawer;
 use yewdux::prelude::*;
 use crate::components::context::{AppState, UIState};
 use super::search_nav::Search_nav;
-use crate::requests::net_requests::{Config, get_config_list};
+use crate::requests::net_requests::{Config, save_config, get_config_list};
 use crate::components::empties::empty_message;
 use wasm_bindgen::closure::Closure;
+use yew_router::history::{BrowserHistory, History};
 use web_sys::{console, window};
 use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::JsCast;
@@ -215,6 +216,47 @@ pub fn search() -> Html {
     let filtered_configs = filter_configs(&*search_configs, &*selected_client_name, &*selected_device_type, &*selected_location);
     
 
+    let on_save_config = {
+        let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
+        let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
+        let user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone()).unwrap_or(0);
+    
+        Callback::from(move |config_id: i32| {
+            let api_key = api_key.clone();
+            let server_name = server_name.clone();
+            spawn_local(async move {
+                match save_config(&server_name.unwrap(), user_id, config_id, &api_key.unwrap()).await {
+                    Ok(_) => {
+                        web_sys::console::log_1(&JsValue::from_str("Configuration saved successfully"));
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&JsValue::from_str(&format!("Failed to save configuration: {}", e)));
+                    }
+                }
+            });
+        })
+    };
+
+
+    fn update_current_editing_config(dispatch: Dispatch<AppState>, config_id: i32) {
+        dispatch.reduce_mut(|state| {
+            state.current_editing_config = Some(config_id);
+            state.clone()
+        });
+    }
+    
+    let on_edit_config = {
+        let history = BrowserHistory::new();
+        let history_clone = history.clone();
+        let dispatch = dispatch.clone();
+    
+        Callback::from(move |config_id: i32| {
+            update_current_editing_config(dispatch.clone(), config_id);
+            history_clone.push("/edit_config");
+        })
+    };
+    
+
     html! {
         <>
         <div class="main-container">
@@ -327,6 +369,7 @@ pub fn search() -> Html {
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {
                                             for filtered_configs.iter().map(|config| {
+                                                let config_id = config.config_id;
                                                 html! {
                                                     <div class="config-card">
                                                         <div class="config-item">
@@ -350,8 +393,8 @@ pub fn search() -> Html {
                                                             <span class="config-value">{format_date_only(&config.created_at)}</span>
                                                         </div>
                                                         <div class="config-item">
-                                                            <button class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>
-                                                            // <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Remove Saved Config"}</button>
+                                                            <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>
+                                                            <button onclick={on_save_config.reform(move |_| config_id.clone())} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Save Config"}</button>
                                                         </div>
                                                     </div>
                                                 }

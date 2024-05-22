@@ -1402,42 +1402,60 @@ async def first_login_done(user_id: int, cnx=Depends(get_database_connection),
         raise HTTPException(status_code=403,
                             detail="You can only make sessions for yourself!")
 
-@app.get("/api/user/saved-configs/{user_id}")
-async def get_saved_configs(user_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
-    is_valid_key = database_functions.verify_api_key(api_key, cnx)
-    if not is_valid_key:
-        raise HTTPException(status_code=403, detail="Invalid API key")
-
-    # Verify user ownership
-    if user_id != database_functions.get_user_id_from_api_key(api_key, cnx):
-        raise HTTPException(status_code=403, detail="Unauthorized access")
-
-    try:
-        database_functions.functions.get_saved_configs(cnx, user_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving saved configurations: {str(e)}")
-
-
 class SaveConfigRequest(BaseModel):
     config_id: int
 
-@app.post("/api/user/{user_id}/save-config")
+@app.post("/api/user/save-config/{user_id}")
 async def save_config(user_id: int, request: SaveConfigRequest, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
-    is_valid_key = database_functions.verify_api_key(api_key, cnx)
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
     if not is_valid_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
 
-    # Verify user ownership of the config
-    if not database_functions.is_config_owned_by_user(cnx, request.config_id, user_id):
-        raise HTTPException(status_code=403, detail="Unauthorized access")
-
     try:
-        database_functions.save_user_config(cnx, user_id, request.config_id)
+        database_functions.functions.save_user_config(cnx, user_id, request.config_id)
         return {"message": "Configuration saved successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving configuration: {str(e)}")
 
+@app.post("/api/user/remove-saved-config/{user_id}")
+async def remove_saved_config(user_id: int, request: SaveConfigRequest, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
 
+    try:
+        database_functions.functions.remove_saved_user_config(cnx, user_id, request.config_id)
+        return {"message": "Configuration removed successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error removing configuration: {str(e)}")
+
+@app.get("/api/user/saved-configs/{user_id}")
+async def get_saved_configs(user_id: int, api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    config_list = database_functions.functions.get_saved_configs(cnx, user_id)
+    config_list_json = []
+    for config in config_list:
+        config_json = {
+            "config_id": config[0],
+            "device_hostname": config[1],
+            "client_name": config[2],
+            "location": config[3],
+            "device_type": config[4],
+            "config_name": config[5],
+            "storage_location": config[6],
+            "file_path": config[7],
+            "created_at": config[8],
+            "saved_at": config[9],
+        }
+        config_list_json.append(config_json)
+    if config_list:
+        return config_list_json
+    else:
+        raise HTTPException(status_code=404, detail="Saved configurations not found")
+    
 class BackupUser(BaseModel):
     user_id: int
 
@@ -1537,6 +1555,7 @@ async def add_config(data: DeviceConfig, cnx=Depends(get_database_connection),
 
     # Call the database function to add the config
     # Add config and get shared details
+    database_functions.functions.increment_config_count(cnx, data.user_id)
     config_id, shared_link, access_key = database_functions.functions.add_config_to_db(
         cnx, data.user_id, data.device_hostname, data.location, data.client_name, data.device_type, data.config_name, storage_location, file_path, data.url
     )

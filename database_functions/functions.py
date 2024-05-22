@@ -793,6 +793,22 @@ def get_stats(cnx, user_id):
 
     return stats
 
+def increment_config_count(cnx, user_id):
+    cursor = cnx.cursor()
+    query = """
+    UPDATE UserStats
+    SET ConfigsCreated = ConfigsCreated + 1
+    WHERE UserID = %s
+    """
+    try:
+        cursor.execute(query, (user_id,))
+        cnx.commit()
+    except Exception as e:
+        cnx.rollback()
+        raise e
+    finally:
+        cursor.close()
+
 def get_session_file_path():
     app_name = 'pinepods'
     data_dir = appdirs.user_data_dir(app_name)
@@ -1420,19 +1436,18 @@ FROM Configurations WHERE UserID = %s"""
     return result
 
 def get_saved_configs(cnx, user_id):
-    try:
-        cursor = cnx.cursor(dictionary=True)
-        query = """
-        SELECT c.*, s.SavedAt
-        FROM Configurations c
-        JOIN SavedConfigurations s ON c.ConfigID = s.ConfigID
-        WHERE c.UserID = %s
-        """
-        cursor.execute(query, (user_id,))
-        saved_configs = cursor.fetchall()
-        return {"saved_configs": saved_configs}
-    finally:
-        cursor.close()
+    cursor = cnx.cursor()
+    query = """
+    SELECT c.ConfigID, c.DeviceHostname, c.ClientName, c.Location, c.DeviceType, c.ConfigName, c.StorageLocation, c.FilePath, c.CreatedAt, s.SavedAt
+    FROM Configurations c
+    JOIN SavedConfigurations s ON c.ConfigID = s.ConfigID
+    WHERE s.UserID = %s
+    """
+    cursor.execute(query, (user_id,))
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
 
 def save_user_config(cnx, user_id, config_id):
     cursor = cnx.cursor()
@@ -1449,3 +1464,17 @@ def save_user_config(cnx, user_id, config_id):
     finally:
         cursor.close()
 
+def remove_saved_user_config(cnx, user_id, config_id):
+    cursor = cnx.cursor()
+    query = """
+    DELETE FROM SavedConfigurations WHERE UserID = %s AND ConfigID = %s
+    """
+    try:
+        cursor.execute(query, (user_id, config_id))
+        cnx.commit()
+    except Exception as e:
+        print(f"Error removing saved configuration: {e}")  # Add logging
+        cnx.rollback()
+        raise e
+    finally:
+        cursor.close()
