@@ -1715,12 +1715,12 @@ async def get_config_list(api_key: str = Depends(get_api_key_from_header), cnx=D
         #config id, hostname, clientname, location, type, configname, createdat should be all we need for the get_all
         config_json = {
             "config_id": config[0],
-            "device_hostname": config[2],
-            "client_name": config[3],
-            "location": config[4],
-            "device_type": config[5],
-            "config_name": config[6],
-            "created_at": config[9],
+            "device_hostname": config[1],
+            "client_name": config[2],
+            "location": config[3],
+            "device_type": config[4],
+            "config_name": config[5],
+            "created_at": config[8],
         }
         config_list_json.append(config_json)
     if config_list:

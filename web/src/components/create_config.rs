@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
 use yewdux::use_store;
-use crate::components::gen_funcs::get_base_url;
+use crate::components::gen_funcs::{validate_config_input, get_base_url};
 use web_sys::window;
 use super::app_drawer::App_drawer;
 use super::search_nav::Search_nav;
@@ -13,6 +13,7 @@ use web_sys::{HtmlSelectElement, HtmlInputElement};
 use crate::components::settings::AccordionItem;
 use crate::components::settings::AccordionItemPosition;
 use wasm_bindgen_futures::spawn_local;
+use regex::Regex;
 use crate::requests::net_requests::{DeviceInfo, send_config_to_server, add_config_db, DeviceConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -95,7 +96,77 @@ pub fn create_config() -> Html {
         || () // Cleanup logic if necessary
     });
 
+    #[derive(Clone, PartialEq)]
+    enum AuvikErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+
+    #[derive(Clone, PartialEq)]
+    enum ClientDomainErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+
+    #[derive(Clone, PartialEq)]
+    enum TacacsErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+
+    #[derive(Clone, PartialEq)]
+    enum LocationErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum TacacsKeyErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum SnmpComErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum AuthenticationErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum IseServerErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    
+    let auvik_error = use_state(|| AuvikErrorNotice::Hidden);
+    let client_domain_error = use_state(|| ClientDomainErrorNotice::Hidden);
+    let tacacs_error = use_state(|| TacacsErrorNotice::Hidden);
+    let location_error = use_state(|| LocationErrorNotice::Hidden);
+    let tacacs_key_error = use_state(|| TacacsKeyErrorNotice::Hidden);
+    let snmp_com_error = use_state(|| SnmpComErrorNotice::Hidden);
+    let authentication_error = use_state(|| AuthenticationErrorNotice::Hidden);
+    let ise_server_error = use_state(|| IseServerErrorNotice::Hidden);
+
     let generate_config_click = {
+
+        let auvik_collector = auvik_collector.clone();
+        let client_domain = client_domain.clone();
+        let tacacs_server = tacacs_server.clone();
+        let location = location.clone();
+        let tacacs_key = tacacs_key.clone();
+        let snmp_com = snmp_community_string.clone();
+        let ise_server = ise_server.clone();
+
+        let auvik_error = auvik_error.clone();
+        let client_domain_error = client_domain_error.clone();
+        let tacacs_error = tacacs_error.clone();
+        let location_error = location_error.clone();
+        let tacacs_key_error = tacacs_key_error.clone();
+        let snmp_com_error = snmp_com_error.clone();
+        let ise_server_error = ise_server_error.clone();
+
         let user_id = _user_id.clone();
         web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
         let server_name = server_name.clone(); // URL to your backend server
@@ -107,6 +178,19 @@ pub fn create_config() -> Html {
         let device_type = (*device_type).clone();
         let shared_link = shared_link.clone(); 
         Callback::from(move |_: MouseEvent| {
+            let auvik_collector_value = (*auvik_collector).clone();
+            let client_domain_value = (*client_domain).clone();
+            let tacacs_server_value = (*tacacs_server).clone();
+            let location_value = (*location).clone();
+            let tacacs_key_value = (*tacacs_key).clone();
+            let snmp_com_value = (*snmp_com).clone();
+            let ise_server_value = (*ise_server).clone();
+
+            // Log the values to ensure they are captured correctly
+            web_sys::console::log_1(&format!("Auvik Collector: {:?}", auvik_collector_value).into());
+            web_sys::console::log_1(&format!("Client Domain: {:?}", client_domain_value).into());
+            // ... Add logs for other fields similarly
+
             web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
             let api_key = api_key.clone();
             let server_name = server_name.clone();
@@ -121,6 +205,70 @@ pub fn create_config() -> Html {
                     web_sys::console::log_1(&format!("Error getting base URL: {}", e).into());
                 }
             }
+
+            let validation_result = validate_config_input(
+                &auvik_collector_value,
+                &client_domain_value,
+                &tacacs_server_value,
+                &location_value,
+                &tacacs_key_value,
+                &snmp_com_value,
+                &ise_server_value,
+            );
+    
+            match validation_result {
+                Ok(_) => {
+                    auvik_error.set(AuvikErrorNotice::Hidden);
+                    client_domain_error.set(ClientDomainErrorNotice::Hidden);
+                    tacacs_error.set(TacacsErrorNotice::Hidden);
+                    location_error.set(LocationErrorNotice::Hidden);
+                    tacacs_key_error.set(TacacsKeyErrorNotice::Hidden);
+                    snmp_com_error.set(SnmpComErrorNotice::Hidden);
+                    ise_server_error.set(IseServerErrorNotice::Hidden);
+                }
+                Err(errors) => {
+                    // Log the errors to ensure they are captured
+                    web_sys::console::log_1(&format!("Validation Errors: {:?}", errors).into());
+    
+                    for error in errors {
+                        if error.contains("Auvik Collector") {
+                            auvik_error.set(AuvikErrorNotice::Shown(error.clone()));
+                        }
+    
+                        if error.contains("Client domain") {
+                            client_domain_error.set(ClientDomainErrorNotice::Shown(error.clone()));
+                        }
+    
+                        if error.contains("TACACS server") {
+                            tacacs_error.set(TacacsErrorNotice::Shown(error.clone()));
+                        }
+    
+                        if error.contains("Location") {
+                            location_error.set(LocationErrorNotice::Shown(error.clone()));
+                        }
+    
+                        if error.contains("TACACS key") {
+                            tacacs_key_error.set(TacacsKeyErrorNotice::Shown(error.clone()));
+                        }
+    
+                        if error.contains("SNMP community string") {
+                            snmp_com_error.set(SnmpComErrorNotice::Shown(error.clone()));
+                        }
+    
+                        if error.contains("ISE server") {
+                            ise_server_error.set(IseServerErrorNotice::Shown(error.clone()));
+                        }
+                    }
+                    return;
+                }
+            }
+
+            // if errors.contains(&ValidationError::InvalidEmail) {
+            //     email_error.set(email_error_notice::Shown);
+            // } else {
+            //     email_error.set(email_error_notice::Hidden);
+            // }
+
             // Example device config, replace this with actual data collection logic
             let device_config = DeviceConfig {
                 user_id: user_id.clone().unwrap(),
@@ -285,6 +433,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                    {
+                        match &*client_domain_error {
+                            ClientDomainErrorNotice::Hidden => html! {},
+                            ClientDomainErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                        }
+                    }
+                </div>
             </div>
         </div>
     };
@@ -416,26 +572,39 @@ pub fn create_config() -> Html {
         </div>
     };
 
+    let timezones = vec![
+        ("Eastern", "EST -5 0"),
+        ("Central", "CST -6 0"),
+        ("Mountain", "MST -7 0"),
+        ("Pacific", "PST -8 0"),
+        ("Alaska", "AKST -9 0"),
+        ("Hawaii", "HST -10 0"),
+    ];
+    
     let timezone_block = html! {
         <div class="config-form">
             <div class="input-field" style="display: flex; align-items: center; justify-content: flex-start;">
                 <label style="margin-right: 10px;">{"Timezone:"}</label>
-                <input
-                    type="text"
+                <select
                     class="email-input border p-2 ml-2 rounded"
-                    placeholder="Timezone"
                     value={(*timezone).clone()}
-                    oninput={{
+                    onchange={{
                         let timezone = timezone.clone();
-                        Callback::from(move |e: InputEvent| {
-                            let input: HtmlInputElement = e.target_unchecked_into();
-                            timezone.set(input.value());
+                        Callback::from(move |e: Event| {
+                            let select: HtmlSelectElement = e.target_unchecked_into();
+                            timezone.set(select.value());
                         })
                     }}
-                />
+                >
+                    <option value="" disabled=true selected=true hidden=true>{"Select Timezone"}</option>
+                    { for timezones.iter().map(|(name, value)| html! {
+                        <option value={value.clone()}>{name}</option>
+                    }) }
+                </select>
             </div>
         </div>
     };
+    
 
     let auvik_collector_block = html! {
         <div class="config-form">
@@ -454,6 +623,15 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                    <div>
+                        {
+                            match &*auvik_error {
+                                AuvikErrorNotice::Hidden => html! {},
+                                AuvikErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                            }
+                        }
+                    </div>
+                
             </div>
         </div>
     };

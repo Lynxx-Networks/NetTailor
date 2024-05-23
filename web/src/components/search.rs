@@ -16,6 +16,7 @@ use crate::components::state_messages::UIStateMsg;
 use wasm_bindgen::JsValue;
 // use base64::engine::Config;
 use std::collections::HashSet;
+use crate::components::gen_funcs::format_date;
 
 fn extract_unique_values(configs: &Vec<Config>) -> (HashSet<String>, HashSet<String>, HashSet<String>) {
     let mut client_names = HashSet::new();
@@ -389,8 +390,8 @@ pub fn search() -> Html {
                                                             <span class="config-value">{&config.device_type}</span>
                                                         </div>
                                                         <div class="config-item">
-                                                            <span class="config-label">{"Search On: "}</span>
-                                                            <span class="config-value">{format_date_only(&config.created_at)}</span>
+                                                            <span class="config-label">{"Created On: "}</span>
+                                                            <span class="config-value">{format_date(&config.created_at)}</span>
                                                         </div>
                                                         <div class="config-item">
                                                             <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>

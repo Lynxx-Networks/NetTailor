@@ -15,6 +15,22 @@ A web based app capable of building and serving network configuration files
 
 - [x] Make Functional edit page
 
+- [x] Fix Timezone create to make sense
+
+- [x] Fix layout of configs data
+
+- [ ] On Screen Notification to indicate config saved or removed from saved
+
+- [ ] Hot removing from saved page
+
+- [ ] Link created on edit page on generate
+
+- [ ] Button to regenerate link for configs
+
 - [ ] verify all functionality
 
+- [ ] Make configs total work
+
 - [ ] get cloud storage working
+
+- [ ] Delete Config Option
