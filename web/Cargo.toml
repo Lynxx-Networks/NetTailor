@@ -17,7 +17,7 @@ yew-router = { version = "0.18.0" }
 serde = { version = "1.0.197", features = ["derive"] }
 gloo-net = "0.5.0"
 gloo = "0.11.0"
-anyhow = { version = "1.0.81", features = [] }
+anyhow = { version = "1.0.86", features = [] }
 wasm-bindgen-futures = "0.4.42"
 gloo-timers = { version = "0.3.0", features = ["futures"] }
 base64 = "0.22.0"
