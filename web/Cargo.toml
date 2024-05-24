@@ -20,7 +20,7 @@ gloo = "0.11.0"
 anyhow = { version = "1.0.81", features = [] }
 wasm-bindgen-futures = "0.4.42"
 gloo-timers = { version = "0.3.0", features = ["futures"] }
-base64 = "0.22.0"
+base64 = "0.22.1"
 yewdux = "0.10.0"
 rss = "2.0.7"
 chrono = "0.4.35"
