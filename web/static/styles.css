@@ -34,6 +34,10 @@ body {
     padding: 0 20px;
 }
 
+.config-container {
+    display: flex;
+}
+
 .item_container-text.episode-description-container a {
     color: var(--link-color); /* Replace #yourColorCode with the color you want */
     text-decoration: none; /* Example property, adjust as needed */
@@ -781,6 +785,37 @@ button.item-container-action-button.item-container-action-button {
     align-items: center;
 }
 
+.config-card {
+    background-color: var(--secondary-background);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    border-color: var(--border-color);
+}
+
+.config-label {
+    font-size: 1rem;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.config-value {
+    font-size: 1.0rem;
+    font-weight: 700;
+    color: var(--text-secondary-color);
+}
+
+.config-page-input {
+    width: 50%;
+    transition: all 1s ease-in-out;
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, 0); /* Adjusted translate to fix vertical alignment */
+    z-index: 1;
+}
+
+
 .stats-card {
     background-color: var(--secondary-background);
     padding: 2rem;
@@ -843,6 +878,8 @@ button.item-container-action-button.item-container-action-button {
     align-items: center;
     padding-top: 120px;
 }
+
+
 
 .search-container.shrink-input {
     height: auto;

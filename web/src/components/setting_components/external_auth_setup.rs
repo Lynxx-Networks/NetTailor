@@ -8,7 +8,6 @@ use crate::requests::setting_reqs::{ExternalAuthRequest, call_add_external_auth,
 pub fn external_auth() -> Html {
     let (state, _dispatch) = use_store::<AppState>();
     let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
-    let user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone());
     let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
     let provider_values: UseStateHandle<Vec<ExternalAuthSetting>> = use_state(Vec::new);
     {
