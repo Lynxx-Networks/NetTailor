@@ -1616,6 +1616,7 @@ async def upload_local(
 @app.put("/api/data/edit_config/{config_id}")
 async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_database_connection),
                       api_key: str = Depends(get_api_key_from_header)):
+                      
     # Validate API Key
     is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
     if not is_valid_key:
@@ -1645,7 +1646,19 @@ async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_d
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
     
-    return {"success": True, "message": "Configuration edited successfully"}
+    # Fetch the updated configuration details
+    config_info = database_functions.functions.get_config_info(cnx, config_id)
+    if not config_info:
+        raise HTTPException(status_code=500, detail="Failed to fetch updated configuration details")
+
+    return {
+        "success": True,
+        "message": "Configuration edited successfully",
+        "config_id": config_info["config_id"],
+        "storage_location": config_info["storage_location"],
+        "shared_link": config_info["shared_link"],
+        "access_key": config_info["access_key"],
+    }
 
 @app.get("/api/data/get_config_for_cisco/{config_id}/{access_key}")
 async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_database_connection)):
@@ -1759,6 +1772,15 @@ async def api_config_count(api_key: str = Depends(get_api_key_from_header), cnx=
         raise HTTPException(status_code=403, detail="Invalid API key")
 
     config_count = database_functions.functions.get_config_count(cnx)
+    return {"config_count": config_count}
+
+@app.get("/api/data/config_count_user")
+async def api_config_count(user_id: int, api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    config_count = database_functions.functions.get_config_count_user(cnx, user_id)
     return {"config_count": config_count}
 
 @app.get("/api/data/clients")

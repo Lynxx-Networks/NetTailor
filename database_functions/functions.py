@@ -771,19 +771,24 @@ def check_api_permission(cnx, passed_key):
 def get_stats(cnx, user_id):
     cursor = cnx.cursor()
 
-    query = ("SELECT UserCreated, ConfigsCreated "
-             "FROM UserStats "
-             "WHERE UserID = %s")
+    # Query to get UserCreated and ConfigsCreated for the specific user
+    user_query = ("SELECT UserCreated, ConfigsCreated "
+                  "FROM UserStats "
+                  "WHERE UserID = %s")
+    cursor.execute(user_query, (user_id,))
+    user_results = cursor.fetchall()
+    user_result = user_results[0] if user_results else None
 
-    cursor.execute(query, (user_id,))
+    # Query to get the total number of configurations
+    total_configs_query = "SELECT COUNT(*) FROM Configurations"
+    cursor.execute(total_configs_query)
+    total_configs_result = cursor.fetchone()
 
-    results = cursor.fetchall()
-    result = results[0] if results else None
-
-    if result:
+    if user_result and total_configs_result:
         stats = {
-            "UserCreated": result[0],
-            "ConfigsCreated": result[1],
+            "UserCreated": user_result[0],
+            "ConfigsCreated": user_result[1],
+            "TotalConfigsCreated": total_configs_result[0]
         }
     else:
         stats = None
@@ -792,6 +797,7 @@ def get_stats(cnx, user_id):
     # cnx.close()
 
     return stats
+
 
 def increment_config_count(cnx, user_id):
     cursor = cnx.cursor()
@@ -1283,6 +1289,37 @@ def delete_scp_user(username):
     import subprocess
     subprocess.run(["userdel", "-r", username], check=True)
 
+def get_config_info(cnx, config_id):
+    cursor = cnx.cursor()
+    try:
+        # Fetch the configuration details
+        query = """
+        SELECT c.ConfigID, c.StorageLocation, s.Link, s.AccessKey
+        FROM Configurations c
+        LEFT JOIN SharedConfigs s ON c.ConfigID = s.ConfigID
+        WHERE c.ConfigID = %s
+        LIMIT 1
+        """
+        cursor.execute(query, (config_id,))
+        result = cursor.fetchone()
+
+        if result:
+            config_id, storage_location, shared_link, access_key = result
+            return {
+                "config_id": config_id,
+                "storage_location": storage_location,
+                "shared_link": shared_link,
+                "access_key": access_key
+            }
+        else:
+            return None
+    except Exception as e:
+        print(f"Failed to get configuration info: {e}")
+        return None
+    finally:
+        cursor.close()
+
+
 def add_config_to_db(db, user_id, device_hostname, location, client_name, device_type, config_name, storage_location, file_path, url):
     from datetime import datetime, timedelta, timezone
 
@@ -1407,6 +1444,15 @@ def get_config_count(cnx):
     count = cursor.fetchone()[0]
     cursor.close()
     return count
+
+def get_config_count_user(cnx, user_id):
+    cursor = cnx.cursor()
+    query = "SELECT COUNT(*) FROM Configurations WHERE UserID = %s"
+    cursor.execute(query, (user_id,))
+    count = cursor.fetchone()[0]
+    cursor.close()
+    return count
+
 
 def db_get_config_info(cnx, config_id):
     cursor = cnx.cursor()

@@ -1,3 +1,4 @@
+use serde_json::error;
 use wasm_bindgen::JsValue;
 use serde::{Deserialize, Serialize};
 use yew::prelude::*;
@@ -139,6 +140,52 @@ pub fn create_config() -> Html {
         Hidden,
         Shown(String),
     }
+    #[derive(Clone, PartialEq)]
+    enum HostnameErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum DeviceIPErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum DNS1ErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum DNS2ErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum DefaultAdminErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum EnableErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum UserPassErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum TimezoneErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    #[derive(Clone, PartialEq)]
+    enum SpanTreeErrorNotice {
+        Hidden,
+        Shown(String),
+    }
+    
     
     let auvik_error = use_state(|| AuvikErrorNotice::Hidden);
     let client_domain_error = use_state(|| ClientDomainErrorNotice::Hidden);
@@ -148,6 +195,15 @@ pub fn create_config() -> Html {
     let snmp_com_error = use_state(|| SnmpComErrorNotice::Hidden);
     let authentication_error = use_state(|| AuthenticationErrorNotice::Hidden);
     let ise_server_error = use_state(|| IseServerErrorNotice::Hidden);
+    let hostname_error = use_state(|| HostnameErrorNotice::Hidden);
+    let device_ip_error = use_state(|| DeviceIPErrorNotice::Hidden);
+    let dns1_error = use_state(|| DNS1ErrorNotice::Hidden);
+    let dns2_error = use_state(|| DNS2ErrorNotice::Hidden);
+    let default_admin_error = use_state(|| DefaultAdminErrorNotice::Hidden);
+    let enable_error = use_state(|| EnableErrorNotice::Hidden);
+    let user_pass_error = use_state(|| UserPassErrorNotice::Hidden);
+    let timezone_error = use_state(|| TimezoneErrorNotice::Hidden);
+    let span_tree_error = use_state(|| SpanTreeErrorNotice::Hidden);
 
     let generate_config_click = {
 
@@ -158,6 +214,15 @@ pub fn create_config() -> Html {
         let tacacs_key = tacacs_key.clone();
         let snmp_com = snmp_community_string.clone();
         let ise_server = ise_server.clone();
+        let hostname = hostname.clone();
+        let device_ip = device_ip.clone();
+        let dns_server1 = dns_server1.clone();
+        let dns_server2 = dns_server2.clone();
+        let default_admin = default_admin.clone();
+        let encrypted_enable_pass = encrypted_enable_pass.clone();
+        let encrypted_user_pass = encrypted_user_pass.clone();
+        let timezone = timezone.clone();
+
 
         let auvik_error = auvik_error.clone();
         let client_domain_error = client_domain_error.clone();
@@ -166,6 +231,15 @@ pub fn create_config() -> Html {
         let tacacs_key_error = tacacs_key_error.clone();
         let snmp_com_error = snmp_com_error.clone();
         let ise_server_error = ise_server_error.clone();
+        let hostname_error = hostname_error.clone();
+        let device_ip_error = device_ip_error.clone();
+        let dns1_error = dns1_error.clone();
+        let dns2_error = dns2_error.clone();
+        let default_admin_error = default_admin_error.clone();
+        let enable_error = enable_error.clone();
+        let user_pass_error = user_pass_error.clone();
+        let timezone_error = timezone_error.clone();
+        let span_tree_error = span_tree_error.clone();
 
         let user_id = _user_id.clone();
         web_sys::console::log_1(&format!("User ID: {:?}", user_id).into());
@@ -185,6 +259,13 @@ pub fn create_config() -> Html {
             let tacacs_key_value = (*tacacs_key).clone();
             let snmp_com_value = (*snmp_com).clone();
             let ise_server_value = (*ise_server).clone();
+            let hostname = (*hostname).clone();
+            let device_ip = (*device_ip).clone();
+            let dns_server1 = (*dns_server1).clone();
+            let dns_server2 = (*dns_server2).clone();
+            let default_admin = (*default_admin).clone();
+            let encrypted_enable_pass = (*encrypted_enable_pass).clone();
+            let encrypted_user_pass = (*encrypted_user_pass).clone();
 
             // Log the values to ensure they are captured correctly
             web_sys::console::log_1(&format!("Auvik Collector: {:?}", auvik_collector_value).into());
@@ -214,6 +295,13 @@ pub fn create_config() -> Html {
                 &tacacs_key_value,
                 &snmp_com_value,
                 &ise_server_value,
+                &hostname,
+                &device_ip,
+                &dns_server1,
+                &dns_server2,
+                &default_admin,
+                &encrypted_enable_pass,
+                &encrypted_user_pass,
             );
     
             match validation_result {
@@ -225,6 +313,15 @@ pub fn create_config() -> Html {
                     tacacs_key_error.set(TacacsKeyErrorNotice::Hidden);
                     snmp_com_error.set(SnmpComErrorNotice::Hidden);
                     ise_server_error.set(IseServerErrorNotice::Hidden);
+                    hostname_error.set(HostnameErrorNotice::Hidden);
+                    device_ip_error.set(DeviceIPErrorNotice::Hidden);
+                    dns1_error.set(DNS1ErrorNotice::Hidden);
+                    dns2_error.set(DNS2ErrorNotice::Hidden);
+                    default_admin_error.set(DefaultAdminErrorNotice::Hidden);
+                    enable_error.set(EnableErrorNotice::Hidden);
+                    user_pass_error.set(UserPassErrorNotice::Hidden);
+                    timezone_error.set(TimezoneErrorNotice::Hidden);
+                    span_tree_error.set(SpanTreeErrorNotice::Hidden);
                 }
                 Err(errors) => {
                     // Log the errors to ensure they are captured
@@ -258,6 +355,35 @@ pub fn create_config() -> Html {
                         if error.contains("ISE server") {
                             ise_server_error.set(IseServerErrorNotice::Shown(error.clone()));
                         }
+                        
+                        if error.contains("Hostname") {
+                            hostname_error.set(HostnameErrorNotice::Shown(error.clone()));
+                        }
+
+                        if error.contains("Device IP") {
+                            device_ip_error.set(DeviceIPErrorNotice::Shown(error.clone()));
+                        }
+
+                        if error.contains("DNS Server 1") {
+                            dns1_error.set(DNS1ErrorNotice::Shown(error.clone()));
+                        }
+
+                        if error.contains("DNS Server 2") {
+                            dns2_error.set(DNS2ErrorNotice::Shown(error.clone()));
+                        }
+
+                        if error.contains("Default Admin") {
+                            default_admin_error.set(DefaultAdminErrorNotice::Shown(error.clone()));
+                        }
+
+                        if error.contains("Enable Pass") {
+                            enable_error.set(EnableErrorNotice::Shown(error.clone()));
+                        }
+
+                        if error.contains("User Pass") {
+                            user_pass_error.set(UserPassErrorNotice::Shown(error.clone()));
+                        }
+
                     }
                     return;
                 }
@@ -462,6 +588,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*default_admin_error {
+                        DefaultAdminErrorNotice::Hidden => html! {},
+                        DefaultAdminErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+                </div>
             </div>
         </div>
     };
@@ -483,6 +617,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*enable_error {
+                        EnableErrorNotice::Hidden => html! {},
+                        EnableErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+                </div>
             </div>
         </div>
     };
@@ -504,6 +646,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*device_ip_error {
+                        DeviceIPErrorNotice::Hidden => html! {},
+                        DeviceIPErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+                </div>
             </div>
         </div>
     };
@@ -525,6 +675,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*hostname_error {
+                        HostnameErrorNotice::Hidden => html! {},
+                        HostnameErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+            </div>
             </div>
         </div>
     };
@@ -674,6 +832,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*user_pass_error {
+                        UserPassErrorNotice::Hidden => html! {},
+                        UserPassErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+                </div>
             </div>
         </div>
     };
@@ -758,6 +924,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*dns1_error {
+                        DNS1ErrorNotice::Hidden => html! {},
+                        DNS1ErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+                </div>
             </div>
         </div>
     };
@@ -779,6 +953,14 @@ pub fn create_config() -> Html {
                         })
                     }}
                 />
+                <div>
+                {
+                    match &*dns2_error {
+                        DNS2ErrorNotice::Hidden => html! {},
+                        DNS2ErrorNotice::Shown(msg) => html! {<p class="text-red-500 text-xs italic">{ msg }</p>},
+                    }
+                }
+                </div>
             </div>
         </div>
     };

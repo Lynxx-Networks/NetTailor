@@ -107,7 +107,7 @@ pub fn user_stats() -> Html {
 
                                         <div class="stats-card">
                                             <p class="stats-label">{"Configs Total"}</p>
-                                            <p class="stats-value">{ &stats.ConfigsCreated }</p>
+                                            <p class="stats-value">{ &stats.TotalConfigsCreated }</p>
                                         </div>
 
                                         <div class="large-card col-span-1 md:col-span-3">

@@ -8,6 +8,7 @@ use web_sys::console;
 pub struct UserStats {
     pub(crate) UserCreated: String,
     pub(crate) ConfigsCreated: i32,
+    pub(crate) TotalConfigsCreated: i32,
 }
 pub async fn call_get_stats(server_name: String, api_key: Option<String>, user_id: &i32) -> Result<UserStats, anyhow::Error> {
     let url = format!("{}/api/data/get_stats?user_id={}", server_name, user_id);

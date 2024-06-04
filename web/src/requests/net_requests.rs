@@ -228,7 +228,7 @@ struct UploadLocalConfig {
     config_content: String,
 }
 
-pub async fn call_edit_config(api_uri: &str, config_id: i32, config_content: String, api_key: &Option<String>) -> Result<(), Error> {
+pub async fn call_edit_config(api_uri: &str, config_id: i32, config_content: String, api_key: &Option<String>) -> Result<ConfigResponse, Error> {
     let url = format!("{}/api/data/edit_config/{}", api_uri, config_id);
     let api_key_ref = api_key.as_deref().ok_or_else(|| anyhow::Error::msg("API key is missing"))?;
     
@@ -243,7 +243,8 @@ pub async fn call_edit_config(api_uri: &str, config_id: i32, config_content: Str
         .await?;
 
     if response.ok() {
-        Ok(())
+        let config_response = response.json::<ConfigResponse>().await?;
+        Ok(config_response)
     } else {
         Err(Error::msg(format!("Error editing configuration: {}", response.status_text())))
     }

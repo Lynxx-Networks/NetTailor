@@ -106,11 +106,13 @@ pub fn edit_config() -> Html {
             let api_key = api_key.clone();
             let server_name = server_name.clone();
             let config_id = config_id.unwrap();
+            let shared_link = shared_link.clone();
 
             wasm_bindgen_futures::spawn_local(async move {
                 match call_edit_config(&server_name.unwrap(), config_id, (*config_content).clone(), &api_key.unwrap()).await {
-                    Ok(_) => {
+                    Ok(config_response) => {
                         web_sys::console::log_1(&JsValue::from_str("Configuration edited successfully"));
+                        shared_link.set(config_response.shared_link.clone());
                     },
                     Err(err) => {
                         web_sys::console::log_1(&JsValue::from_str(&format!("Failed to edit configuration: {}", err)));
@@ -140,7 +142,7 @@ pub fn edit_config() -> Html {
                             </div>
                         </div>
                         <div>
-                            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mt-3 rounded" onclick={generate_config_click}>{"Generate Config"}</button>
+                            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mt-3 rounded" onclick={generate_config_click}>{"Save Config"}</button>
                         </div>
 
                         {link_display}

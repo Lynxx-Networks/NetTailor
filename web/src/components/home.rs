@@ -9,6 +9,7 @@ use web_sys::{console, window};
 use wasm_bindgen::JsCast;
 use crate::requests::login_requests::use_check_authentication;
 use crate::components::state_messages::UIStateMsg;
+use yew_router::history::{BrowserHistory, History};
 
 
 #[function_component(Home)]
@@ -82,6 +83,26 @@ pub fn home() -> Html {
 
     console::log_1(&format!("loading ep value: {:?}", *loading).into());
 
+    let on_search_config = {
+        let history = BrowserHistory::new();
+        let history_clone = history.clone();
+    
+        Callback::from(move |_: MouseEvent| {
+
+            history_clone.push("/search");
+        })
+    };
+
+    let on_create_config = {
+        let history = BrowserHistory::new();
+        let history_clone = history.clone();
+    
+        Callback::from(move |_: MouseEvent| {
+
+            history_clone.push("/create_config");
+        })
+    };
+
     html! {
         <>
         <div class="main-container">
@@ -98,13 +119,13 @@ pub fn home() -> Html {
                             <div>
                                 <button
                                     class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full mr-4"
-                                    onclick={Callback::from(|_| log::info!("Create new configuration"))}
+                                    onclick={on_create_config}
                                 >
                                     {"Create New Configuration"}
                                 </button>
                                 <button
                                     class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full"
-                                    onclick={Callback::from(|_| log::info!("Search for existing configuration"))}
+                                    onclick={on_search_config}
                                 >
                                     {"Search for Existing Configuration"}
                                 </button>

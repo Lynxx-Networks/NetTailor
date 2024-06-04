@@ -52,6 +52,13 @@ pub fn validate_config_input(
     tacacs_key: &str,
     snmp_com: &str,
     ise_server: &str,
+    hostname: &str,
+    device_ip: &str,
+    dns_server1: &str,
+    dns_server2: &str,
+    default_admin: &str,
+    encrypted_enable_pass: &str,
+    encrypted_user_pass: &str,
 ) -> Result<(), Vec<String>> {
     let ipv4_regex = Regex::new(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$").unwrap();
     let domain_regex = Regex::new(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$").unwrap();
@@ -90,6 +97,33 @@ pub fn validate_config_input(
 
     if ise_server.is_empty() {
         errors.push("ISE server cannot be empty".to_string());
+    }
+    if hostname.is_empty() {
+        errors.push("Hostname cannot be empty".to_string());
+    }
+    if device_ip.is_empty() {
+        errors.push("Device IP cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(device_ip) {
+        errors.push("Device IP must be a valid IPv4 address".to_string());
+    }
+    if dns_server1.is_empty() {
+        errors.push("DNS server 1 cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(dns_server1) {
+        errors.push("DNS server 1 must be a valid IPv4 address".to_string());
+    }
+    if dns_server2.is_empty() {
+        errors.push("DNS server 2 cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(dns_server2) {
+        errors.push("DNS server 2 must be a valid IPv4 address".to_string());
+    }
+    if default_admin.is_empty() {
+        errors.push("Default admin cannot be empty".to_string());
+    }
+    if encrypted_enable_pass.is_empty() {
+        errors.push("Encrypted enable password cannot be empty".to_string());
+    }
+    if encrypted_user_pass.is_empty() {
+        errors.push("Encrypted user password cannot be empty".to_string());
     }
 
     if errors.is_empty() {

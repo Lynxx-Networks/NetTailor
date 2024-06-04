@@ -51,6 +51,9 @@ fn filter_configs(configs: &Vec<Config>, client_name: &Option<String>, device_ty
 #[function_component(Search)]
 pub fn search() -> Html {
     let (state, dispatch) = use_store::<AppState>();
+    let (_state, _dispatch) = use_store::<UIState>();
+    let info_message = _state.info_message.clone();
+    let error_message = _state.error_message.clone();
     let effect_dispatch = dispatch.clone();
 
     console::log_1(&format!("About to run check auth").into());
@@ -216,22 +219,27 @@ pub fn search() -> Html {
 
     let filtered_configs = filter_configs(&*search_configs, &*selected_client_name, &*selected_device_type, &*selected_location);
     
-
+    let save_dispatch = _dispatch.clone();
     let on_save_config = {
         let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
         let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
         let user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone()).unwrap_or(0);
-    
+        let ui_dispatch = save_dispatch.clone();
         Callback::from(move |config_id: i32| {
             let api_key = api_key.clone();
             let server_name = server_name.clone();
+            let call_dispatch = ui_dispatch.clone();
             spawn_local(async move {
                 match save_config(&server_name.unwrap(), user_id, config_id, &api_key.unwrap()).await {
                     Ok(_) => {
+                        call_dispatch.reduce_mut(|audio_state| audio_state.info_message = Option::from("Configuration saved successfully".to_string()));
+
                         web_sys::console::log_1(&JsValue::from_str("Configuration saved successfully"));
                     }
                     Err(e) => {
                         web_sys::console::log_1(&JsValue::from_str(&format!("Failed to save configuration: {}", e)));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.error_message = Option::from("Failed to save configuration".to_string()));
+
                     }
                 }
             });

@@ -53,6 +53,7 @@ fn filter_configs(configs: &Vec<SavedConfig>, client_name: &Option<String>, devi
 #[function_component(Saved)]
 pub fn saved() -> Html {
     let (state, dispatch) = use_store::<AppState>();
+    let (_state, _dispatch) = use_store::<UIState>();
     let effect_dispatch = dispatch.clone();
 
     console::log_1(&format!("About to run check auth").into());
@@ -225,13 +226,18 @@ pub fn saved() -> Html {
         Callback::from(move |config_id: i32| {
             let api_key = api_key.clone();
             let server_name = server_name.clone();
+            let call_dispatch = _dispatch.clone();
+            let saved_configs = saved_configs.clone();
             spawn_local(async move {
                 match remove_saved_config(&server_name.unwrap(), user_id, config_id, &api_key.unwrap()).await {
                     Ok(_) => {
                         web_sys::console::log_1(&JsValue::from_str("Configuration removed successfully"));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.info_message = Option::from("Configuration saved successfully".to_string()));
+                        saved_configs.set(saved_configs.iter().cloned().filter(|config| config.config_id != config_id).collect());
                     }
                     Err(e) => {
                         web_sys::console::log_1(&JsValue::from_str(&format!("Failed to remove configuration: {}", e)));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.error_message = Option::from("Failed to remove configuration".to_string()));
                     }
                 }
             });

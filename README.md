@@ -3,7 +3,7 @@ A web based app capable of building and serving network configuration files
 
 # ToDo
 
-- [ ] create config value checks to verify valid configs
+- [x] create config value checks to verify valid configs
 
 - [x] Basic Userstats page
 
@@ -13,23 +13,23 @@ A web based app capable of building and serving network configuration files
 
 - [x] get remove saved button working on save page
 
-- [x] Make Functional edit page
+- [x] Make Functional edit page[text](about:blank#blocked)
 
 - [x] Fix Timezone create to make sense
 
 - [x] Fix layout of configs data
 
-- [ ] On Screen Notification to indicate config saved or removed from saved
+- [x] On Screen Notification to indicate config saved or removed from saved
 
-- [ ] Hot removing from saved page
+- [x] Hot removing from saved page
 
-- [ ] Link created on edit page on generate
+- [x] Link created on edit page on generate
 
 - [ ] Button to regenerate link for configs
 
 - [ ] verify all functionality
 
-- [ ] Make configs total work
+- [x] Make configs total work
 
 - [ ] get cloud storage working
 
