@@ -80,6 +80,7 @@ pub struct AppState {
     pub azure_client_id: Option<String>,
     pub azure_tenant_id: Option<String>,
     pub use_cloud_storage: Option<bool>,
+    pub current_editing_config: Option<i32>,
 }
 
 #[derive(Default, Deserialize, Clone, PartialEq, Store, Debug)]

@@ -7,6 +7,8 @@ use argon2::{
     },
     Argon2
 };
+use regex::Regex;
+
 
 
 pub fn format_date(date_str: &str) -> String {
@@ -40,6 +42,95 @@ pub fn validate_user_input(username: &str, password: &str, email: &str) -> Resul
     }
 
     Ok(())
+}
+
+pub fn validate_config_input(
+    auvik_collector_ip: &str,
+    client_domain: &str,
+    tacacs_server: &str,
+    location: &str,
+    tacacs_key: &str,
+    snmp_com: &str,
+    ise_server: &str,
+    hostname: &str,
+    device_ip: &str,
+    dns_server1: &str,
+    dns_server2: &str,
+    default_admin: &str,
+    encrypted_enable_pass: &str,
+    encrypted_user_pass: &str,
+) -> Result<(), Vec<String>> {
+    let ipv4_regex = Regex::new(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$").unwrap();
+    let domain_regex = Regex::new(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$").unwrap();
+    let mut errors = Vec::new();
+
+    web_sys::console::log_1(&format!("Client Domain: {}", client_domain).into());
+
+
+    if auvik_collector_ip.is_empty() {
+        errors.push("Auvik Collector cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(auvik_collector_ip) && !domain_regex.is_match(auvik_collector_ip) {
+        errors.push("Auvik Collector must be a valid IPv4 address or domain name".to_string());
+    }
+
+    if client_domain.is_empty() {
+        errors.push("Client domain cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(client_domain) && !domain_regex.is_match(client_domain) {
+        errors.push("Client Domain must be a valid IPv4 address or domain name".to_string());
+    }
+
+    if tacacs_server.is_empty() {
+        errors.push("TACACS server cannot be empty".to_string());
+    }
+
+    if location.is_empty() {
+        errors.push("Location cannot be empty".to_string());
+    }
+
+    if tacacs_key.is_empty() {
+        errors.push("TACACS key cannot be empty".to_string());
+    }
+
+    if snmp_com.is_empty() {
+        errors.push("SNMP community string cannot be empty".to_string());
+    }
+
+    if ise_server.is_empty() {
+        errors.push("ISE server cannot be empty".to_string());
+    }
+    if hostname.is_empty() {
+        errors.push("Hostname cannot be empty".to_string());
+    }
+    if device_ip.is_empty() {
+        errors.push("Device IP cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(device_ip) {
+        errors.push("Device IP must be a valid IPv4 address".to_string());
+    }
+    if dns_server1.is_empty() {
+        errors.push("DNS server 1 cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(dns_server1) {
+        errors.push("DNS server 1 must be a valid IPv4 address".to_string());
+    }
+    if dns_server2.is_empty() {
+        errors.push("DNS server 2 cannot be empty".to_string());
+    } else if !ipv4_regex.is_match(dns_server2) {
+        errors.push("DNS server 2 must be a valid IPv4 address".to_string());
+    }
+    if default_admin.is_empty() {
+        errors.push("Default admin cannot be empty".to_string());
+    }
+    if encrypted_enable_pass.is_empty() {
+        errors.push("Encrypted enable password cannot be empty".to_string());
+    }
+    if encrypted_user_pass.is_empty() {
+        errors.push("Encrypted user password cannot be empty".to_string());
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }
 
 pub fn get_base_url() -> Result<String, &'static str> {

@@ -123,7 +123,7 @@ try:
                         UserStatsID INT AUTO_INCREMENT PRIMARY KEY,
                         UserID INT,
                         UserCreated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        ConfigsCreated INT,
+                        ConfigsCreated INT DEFAULT 0,
                         FOREIGN KEY (UserID) REFERENCES Users(UserID)
                     )""")
 

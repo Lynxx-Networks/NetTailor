@@ -43,7 +43,7 @@ fn switch(route: Route) -> Html {
         Route::ChangeServer => html! { <ChangeServer /> },
         Route::Saved => html! { <Saved /> },
         Route::Settings => html! { <Settings /> },
-        Route::Search => html! { <Search on_search={Callback::from(move |_| {})} /> },
+        Route::Search => html! { <Search /> },
         Route::UserStats => html! { <UserStats /> },
         Route::LogOut => html! { <LogOut /> },
 
