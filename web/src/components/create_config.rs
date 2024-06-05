@@ -1,4 +1,3 @@
-use serde_json::error;
 use wasm_bindgen::JsValue;
 use serde::{Deserialize, Serialize};
 use yew::prelude::*;
@@ -14,7 +13,6 @@ use web_sys::{HtmlSelectElement, HtmlInputElement};
 use crate::components::settings::AccordionItem;
 use crate::components::settings::AccordionItemPosition;
 use wasm_bindgen_futures::spawn_local;
-use regex::Regex;
 use crate::requests::net_requests::{DeviceInfo, send_config_to_server, add_config_db, DeviceConfig};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -131,11 +129,6 @@ pub fn create_config() -> Html {
         Shown(String),
     }
     #[derive(Clone, PartialEq)]
-    enum AuthenticationErrorNotice {
-        Hidden,
-        Shown(String),
-    }
-    #[derive(Clone, PartialEq)]
     enum IseServerErrorNotice {
         Hidden,
         Shown(String),
@@ -193,7 +186,6 @@ pub fn create_config() -> Html {
     let location_error = use_state(|| LocationErrorNotice::Hidden);
     let tacacs_key_error = use_state(|| TacacsKeyErrorNotice::Hidden);
     let snmp_com_error = use_state(|| SnmpComErrorNotice::Hidden);
-    let authentication_error = use_state(|| AuthenticationErrorNotice::Hidden);
     let ise_server_error = use_state(|| IseServerErrorNotice::Hidden);
     let hostname_error = use_state(|| HostnameErrorNotice::Hidden);
     let device_ip_error = use_state(|| DeviceIPErrorNotice::Hidden);
@@ -221,7 +213,6 @@ pub fn create_config() -> Html {
         let default_admin = default_admin.clone();
         let encrypted_enable_pass = encrypted_enable_pass.clone();
         let encrypted_user_pass = encrypted_user_pass.clone();
-        let timezone = timezone.clone();
 
 
         let auvik_error = auvik_error.clone();
@@ -756,7 +747,7 @@ pub fn create_config() -> Html {
                 >
                     <option value="" disabled=true selected=true hidden=true>{"Select Timezone"}</option>
                     { for timezones.iter().map(|(name, value)| html! {
-                        <option value={value.clone()}>{name}</option>
+                        <option value={*value}>{name}</option>
                     }) }
                 </select>
             </div>

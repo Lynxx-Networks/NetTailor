@@ -5,11 +5,11 @@ use yewdux::prelude::*;
 use crate::components::context::{AppState, UIState};
 use super::search_nav::Search_nav;
 use crate::requests::net_requests::{SavedConfig, remove_saved_config, get_saved_configs};
-use crate::components::empties::empty_message;
 use wasm_bindgen::closure::Closure;
 use web_sys::{console, window};
 use wasm_bindgen_futures::spawn_local;
 use yew_router::history::{BrowserHistory, History};
+use crate::components::search::{edit_icon};
 use wasm_bindgen::JsCast;
 use crate::requests::login_requests::use_check_authentication;
 use crate::components::state_messages::UIStateMsg;
@@ -32,12 +32,6 @@ fn extract_unique_values(configs: &Vec<SavedConfig>) -> (HashSet<String>, HashSe
     (client_names, device_types, locations)
 }
 
-
-fn format_date_only(date_time_str: &str) -> String {
-    let datetime = chrono::NaiveDateTime::parse_from_str(date_time_str, "%Y-%m-%d %H:%M:%S");
-    datetime.map(|dt| dt.date().to_string()).unwrap_or_else(|_| String::from("Invalid date"))
-}
-
 fn filter_configs(configs: &Vec<SavedConfig>, client_name: &Option<String>, device_type: &Option<String>, location: &Option<String>) -> Vec<SavedConfig> {
     configs.iter().filter(|config| {
         let client_name_matches = client_name.as_ref().map_or(true, |client| &config.client_name == client);
@@ -47,6 +41,12 @@ fn filter_configs(configs: &Vec<SavedConfig>, client_name: &Option<String>, devi
     }).cloned().collect()
 }
 
+pub fn cancel_icon() -> Html {
+    html! {
+        <span class="material-icons">{ "cancel" }</span>
+
+    }
+}
 
 
 
@@ -261,6 +261,9 @@ pub fn saved() -> Html {
             history_clone.push("/edit_config");
         })
     };
+
+    let edit_icon = edit_icon();
+    let cancel_icon = cancel_icon();
     
 
     html! {
@@ -376,6 +379,8 @@ pub fn saved() -> Html {
                                         {
                                             for filtered_configs.iter().map(|config| {
                                                 let config_id = config.config_id;
+                                                let edit_icon = edit_icon.clone();
+                                                let cancel_icon = cancel_icon.clone();
                                                 html! {
                                                     <div class="config-card">
                                                         <div class="config-item">
@@ -399,8 +404,8 @@ pub fn saved() -> Html {
                                                             <span class="config-value">{format_date(&config.saved_at)}</span>
                                                         </div>
                                                         <div class="config-item">
-                                                        <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>
-                                                            <button onclick={on_remove_saved_config.reform(move |_| config_id.clone())} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Remove Saved Config"}</button>
+                                                        <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{edit_icon}</button>
+                                                            <button onclick={on_remove_saved_config.reform(move |_| config_id.clone())} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{cancel_icon}</button>
                                                         </div>
                                                     </div>
                                                 }

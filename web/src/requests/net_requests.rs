@@ -1,8 +1,6 @@
 use anyhow::Error;
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use gloo_timers::future::TimeoutFuture;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceConfig {
@@ -247,5 +245,47 @@ pub async fn call_edit_config(api_uri: &str, config_id: i32, config_content: Str
         Ok(config_response)
     } else {
         Err(Error::msg(format!("Error editing configuration: {}", response.status_text())))
+    }
+}
+
+pub async fn call_update_access_details(server_name: &str, config_id: i32, api_key: &Option<String>) -> Result<ConfigResponse, Error> {
+    let url = format!("{}/api/data/update_access_details/{}", server_name, config_id);
+    let api_key_ref = api_key.as_deref().ok_or_else(|| anyhow::Error::msg("API key is missing"))?;
+
+    let response = Request::put(&url)
+        .header("Content-Type", "application/json")
+        .header("Api-Key", api_key_ref)
+        .send()
+        .await?;
+
+    if response.ok() {
+        let update_response = response.json::<ConfigResponse>().await?;
+        Ok(update_response)
+    } else {
+        Err(Error::msg(format!("Error updating access details: {}", response.status_text())))
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ApiResponse {
+    pub(crate) _success: bool,
+    pub(crate) _message: String,
+}
+
+pub async fn call_delete_config(server_name: &str, config_id: i32, api_key: &Option<String>) -> Result<ApiResponse, Error> {
+    let url = format!("{}/api/data/delete_config/{}", server_name, config_id);
+    let api_key_ref = api_key.as_deref().ok_or_else(|| anyhow::Error::msg("API key is missing"))?;
+    
+    let response = Request::delete(&url)
+        .header("Content-Type", "application/json")
+        .header("Api-Key", api_key_ref)
+        .send()
+        .await?;
+
+    if response.ok() {
+        let api_response = response.json::<ApiResponse>().await?;
+        Ok(api_response)
+    } else {
+        Err(Error::msg(format!("Error deleting configuration: {}", response.status_text())))
     }
 }

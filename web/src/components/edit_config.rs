@@ -1,35 +1,16 @@
 use wasm_bindgen::JsValue;
 use serde::{Deserialize, Serialize};
 use yew::prelude::*;
-use wasm_bindgen::JsCast;
 use yewdux::use_store;
-use crate::components::gen_funcs::get_base_url;
-use web_sys::window;
 use super::app_drawer::App_drawer;
 use super::search_nav::Search_nav;
 use crate::components::context::{AppState, UIState};
-use crate::components::misc_func::generate_config;
-use web_sys::{HtmlSelectElement, HtmlInputElement};
-use crate::components::settings::AccordionItem;
-use crate::components::settings::AccordionItemPosition;
-use wasm_bindgen_futures::spawn_local;
-use crate::requests::net_requests::{call_edit_config, DeviceInfo, get_config_raw, send_config_to_server, add_config_db, DeviceConfig};
+use crate::requests::net_requests::{call_edit_config, get_config_raw};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Client {
     name: String,
 }
-
-
-async fn get_clients_list() -> Result<Vec<Client>, JsValue> {
-    let window = window().ok_or_else(|| JsValue::from_str("No global `window` exists"))?;
-    let session_storage = window.session_storage()?.ok_or_else(|| JsValue::from_str("Failed to get session storage"))?;
-
-    let clients_json = session_storage.get_item("clients")?.ok_or_else(|| JsValue::from_str("No clients found in session storage"))?;
-
-    serde_json::from_str(&clients_json).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
 
 #[function_component(EditConfig)]
 pub fn edit_config() -> Html {
@@ -93,7 +74,6 @@ pub fn edit_config() -> Html {
         html! {}
     };
 
-    let generate_config_id = config_id.clone();
     let generate_config_click = {
         let config_content = config_content.clone();
         let api_key = api_key.clone();

@@ -12,7 +12,6 @@ pub(crate) mod context;
 pub(crate) mod create_config;
 pub(crate) mod edit_config;
 pub(crate) mod html_scrub;
-pub(crate) mod empties;
 pub mod gen_funcs;
 pub(crate) mod search_nav;
 pub(crate) mod state_messages;

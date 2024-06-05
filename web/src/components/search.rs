@@ -4,8 +4,7 @@ use super::app_drawer::App_drawer;
 use yewdux::prelude::*;
 use crate::components::context::{AppState, UIState};
 use super::search_nav::Search_nav;
-use crate::requests::net_requests::{Config, save_config, get_config_list};
-use crate::components::empties::empty_message;
+use crate::requests::net_requests::{Config, call_update_access_details, save_config, call_delete_config, get_config_list};
 use wasm_bindgen::closure::Closure;
 use yew_router::history::{BrowserHistory, History};
 use web_sys::{console, window};
@@ -33,11 +32,6 @@ fn extract_unique_values(configs: &Vec<Config>) -> (HashSet<String>, HashSet<Str
 }
 
 
-fn format_date_only(date_time_str: &str) -> String {
-    let datetime = chrono::NaiveDateTime::parse_from_str(date_time_str, "%Y-%m-%d %H:%M:%S");
-    datetime.map(|dt| dt.date().to_string()).unwrap_or_else(|_| String::from("Invalid date"))
-}
-
 fn filter_configs(configs: &Vec<Config>, client_name: &Option<String>, device_type: &Option<String>, location: &Option<String>) -> Vec<Config> {
     configs.iter().filter(|config| {
         let client_name_matches = client_name.as_ref().map_or(true, |client| &config.client_name == client);
@@ -47,13 +41,40 @@ fn filter_configs(configs: &Vec<Config>, client_name: &Option<String>, device_ty
     }).cloned().collect()
 }
 
+pub fn edit_icon() -> Html {
+    html! {
+        <span class="material-icons">{ "edit" }</span>
+
+    }
+}
+
+pub fn save_icon() -> Html {
+    html! {
+        <span class="material-icons">{ "star" }</span>
+
+    }
+}
+
+pub fn delete_icon() -> Html {
+    html! {
+        <span class="material-icons">{ "delete" }</span>
+
+    }
+}
+
+pub fn link_icon() -> Html {
+    html! {
+        <span class="material-icons">{ "link" }</span>
+
+    }
+}
+
 
 #[function_component(Search)]
 pub fn search() -> Html {
     let (state, dispatch) = use_store::<AppState>();
     let (_state, _dispatch) = use_store::<UIState>();
-    let info_message = _state.info_message.clone();
-    let error_message = _state.error_message.clone();
+    let shared_link = use_state(|| String::new());
     let effect_dispatch = dispatch.clone();
 
     console::log_1(&format!("About to run check auth").into());
@@ -103,8 +124,6 @@ pub fn search() -> Html {
         || ()
     });
 
-    let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
-    let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
     let _user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone());
 
     let search_configs: UseStateHandle<Vec<Config>> = use_state(Vec::new);
@@ -229,6 +248,7 @@ pub fn search() -> Html {
             let api_key = api_key.clone();
             let server_name = server_name.clone();
             let call_dispatch = ui_dispatch.clone();
+
             spawn_local(async move {
                 match save_config(&server_name.unwrap(), user_id, config_id, &api_key.unwrap()).await {
                     Ok(_) => {
@@ -239,6 +259,59 @@ pub fn search() -> Html {
                     Err(e) => {
                         web_sys::console::log_1(&JsValue::from_str(&format!("Failed to save configuration: {}", e)));
                         call_dispatch.reduce_mut(|audio_state| audio_state.error_message = Option::from("Failed to save configuration".to_string()));
+
+                    }
+                }
+            });
+        })
+    };
+
+    let on_link_get = {
+        let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
+        let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
+        let ui_dispatch = save_dispatch.clone();
+        let shared_link = shared_link.clone(); 
+        Callback::from(move |config_id: i32| {
+            let api_key = api_key.clone();
+            let server_name = server_name.clone();
+            let call_dispatch = ui_dispatch.clone();
+            let shared_link = shared_link.clone();
+            spawn_local(async move {
+                match call_update_access_details(&server_name.unwrap(), config_id, &api_key.unwrap()).await {
+                    Ok(config_response) => {
+                        shared_link.set(config_response.shared_link.clone());
+
+                        web_sys::console::log_1(&JsValue::from_str("Configuration link created"));
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&JsValue::from_str(&format!("Failed to save configuration: {}", e)));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.error_message = Option::from("Failed to save configuration".to_string()));
+
+                    }
+                }
+            });
+        })
+    };
+
+    let on_delete_config = {
+        let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
+        let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
+        let ui_dispatch = save_dispatch.clone();
+        Callback::from(move |config_id: i32| {
+            let api_key = api_key.clone();
+            let server_name = server_name.clone();
+            let call_dispatch = ui_dispatch.clone();
+            let search_configs = search_configs.clone();
+            spawn_local(async move {
+                match call_delete_config(&server_name.unwrap(), config_id, &api_key.unwrap()).await {
+                    Ok(_) => {
+                        call_dispatch.reduce_mut(|audio_state| audio_state.info_message = Option::from("Configuration deleted successfully".to_string()));
+                        search_configs.set(search_configs.iter().cloned().filter(|config| config.config_id != config_id).collect());
+                        web_sys::console::log_1(&JsValue::from_str("Configuration deleted successfully"));
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&JsValue::from_str(&format!("Failed to delete configuration: {}", e)));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.error_message = Option::from("Failed to delete configuration".to_string()));
 
                     }
                 }
@@ -264,6 +337,25 @@ pub fn search() -> Html {
             history_clone.push("/edit_config");
         })
     };
+
+    let edit_icon = edit_icon();
+    let save_icon = save_icon();
+    let delete_icon = delete_icon();
+    let link_icon = link_icon();
+
+    let link_display = if !shared_link.is_empty() {
+        html! {
+            <div class="link-display">
+                <p class="text-lg font-bold mb-2">{"Command to install config on switch:"}</p>
+                <div class="border border-gray-300 p-2 rounded">
+                    <p class="font-mono text-sm">{format!("copy {} running-config", *shared_link)}</p>
+                </div>
+            </div>
+        }
+    } else {
+        html! {}
+    };
+    
     
 
     html! {
@@ -286,6 +378,7 @@ pub fn search() -> Html {
                             html! {
                                 <>
                                 <h1 class="text-2xl item_container-text font-bold text-center mb-6">{"Search Configurations"}</h1>
+                                {link_display}
                                 <div class="config-container">    
                                     <div class="filter-bar w-1/10 p-4">
                                         <h2 class="text-lg font-bold mb-4 item_container-text">{"Filter:"}</h2>
@@ -327,7 +420,8 @@ pub fn search() -> Html {
                                                 </button>
                                                 <div id="dropdown2" class={if *dropdown2_open { "z-10 bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" } else { "z-10 hidden bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700" }}>
                                                     <ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdown2Button">
-                                                        { for device_types.iter().map(|device| html! {
+                                                        { for device_types.iter().map(|device| 
+                                                            html! {
                                                             <li>
                                                                 <button onclick={
                                                                     let on_device_type_select = on_device_type_select.clone();
@@ -378,7 +472,11 @@ pub fn search() -> Html {
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {
                                             for filtered_configs.iter().map(|config| {
+                                                let edit_icon = edit_icon.clone();
+                                                let save_icon = save_icon.clone();
+                                                let delete_icon = delete_icon.clone();
                                                 let config_id = config.config_id;
+                                                let link_icon = link_icon.clone();
                                                 html! {
                                                     <div class="config-card">
                                                         <div class="config-item">
@@ -402,8 +500,12 @@ pub fn search() -> Html {
                                                             <span class="config-value">{format_date(&config.created_at)}</span>
                                                         </div>
                                                         <div class="config-item">
-                                                            <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>
-                                                            <button onclick={on_save_config.reform(move |_| config_id.clone())} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Save Config"}</button>
+                                                            <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">                                    
+                                                                { edit_icon }
+                                                            </button>
+                                                            <button onclick={on_save_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{save_icon}</button>
+                                                            <button onclick={on_link_get.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{link_icon}</button>
+                                                            <button onclick={on_delete_config.reform(move |_| config_id.clone())} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{delete_icon}</button>
                                                         </div>
                                                     </div>
                                                 }

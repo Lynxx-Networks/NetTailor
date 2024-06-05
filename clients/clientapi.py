@@ -1676,6 +1676,12 @@ async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_d
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
     
+    # Update the access details
+    updated_details = database_functions.functions.update_access_details(cnx, config_id)
+    if not updated_details:
+        raise HTTPException(status_code=500, detail="Failed to update access details")
+
+
     # Fetch the updated configuration details
     config_info = database_functions.functions.get_config_info(cnx, config_id)
     if not config_info:
@@ -1684,6 +1690,48 @@ async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_d
     return {
         "success": True,
         "message": "Configuration edited successfully",
+        "config_id": config_info["config_id"],
+        "storage_location": config_info["storage_location"],
+        "shared_link": config_info["shared_link"],
+        "access_key": config_info["access_key"],
+    }
+
+@app.put("/api/data/update_access_details/{config_id}")
+async def update_access_details(config_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
+    # Validate API Key
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    # Fetch configuration information to ensure it exists
+    query = "SELECT UserID FROM Configurations WHERE ConfigID = %s LIMIT 1"
+    cursor = cnx.cursor()
+    cursor.execute(query, (config_id,))
+    config_info = cursor.fetchone()
+
+    if not config_info:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    
+    user_id = config_info[0]
+
+    # Ensure the user has permission to update this config
+    user_id_from_api_key = database_functions.functions.id_from_api_key(cnx, api_key)
+    if user_id != user_id_from_api_key:
+        raise HTTPException(status_code=403, detail="Unauthorized access")
+
+    # Update the access details
+    updated_details = database_functions.functions.update_access_details(cnx, config_id)
+    if not updated_details:
+        raise HTTPException(status_code=500, detail="Failed to update access details")
+
+    # Fetch the updated configuration details
+    config_info = database_functions.functions.get_config_info(cnx, config_id)
+    if not config_info:
+        raise HTTPException(status_code=500, detail="Failed to fetch updated configuration details")
+
+    return {
+        "success": True,
+        "message": "Access details updated successfully",
         "config_id": config_info["config_id"],
         "storage_location": config_info["storage_location"],
         "shared_link": config_info["shared_link"],

@@ -25,12 +25,14 @@ A web based app capable of building and serving network configuration files
 
 - [x] Link created on edit page on generate
 
-- [ ] Button to regenerate link for configs
-
-- [ ] verify all functionality
-
 - [x] Make configs total work
 
-- [ ] get cloud storage working
+- [x] get cloud storage working
 
-- [ ] Delete Config Option
+- [x] Delete Config Option
+
+- [x] Button to regenerate link for configs
+
+- [x] Hot remove deleted configs
+
+- [ ] verify all functionality

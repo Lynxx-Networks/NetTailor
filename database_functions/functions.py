@@ -1320,6 +1320,50 @@ def get_config_info(cnx, config_id):
         cursor.close()
 
 
+def update_access_details(cnx, config_id):
+    from datetime import datetime, timedelta, timezone
+    cursor = cnx.cursor()
+    try:
+        # Generate a new access key and update expires_at time
+        access_key = generate_access_key()
+        expires_at = datetime.now(timezone.utc) + timedelta(weeks=1)
+
+        # Fetch the current link to update it with the new access key
+        query = "SELECT Link FROM SharedConfigs WHERE ConfigID = %s LIMIT 1"
+        cursor.execute(query, (config_id,))
+        current_link = cursor.fetchone()
+
+        if not current_link:
+            raise Exception("Current link not found for the given config ID")
+
+        current_link = current_link[0]
+        base_link = current_link.rsplit('/', 1)[0]
+        new_link = f"{base_link}/{access_key}"
+
+        # Update the shared configuration details
+        update_query = """
+        UPDATE SharedConfigs
+        SET Link = %s, AccessKey = %s, ExpiresAt = %s
+        WHERE ConfigID = %s
+        """
+        cursor.execute(update_query, (new_link, access_key, expires_at, config_id))
+
+        cnx.commit()
+        return {
+            "config_id": config_id,
+            "shared_link": new_link,
+            "access_key": access_key,
+            "expires_at": expires_at
+        }
+    except Exception as e:
+        cnx.rollback()
+        print(f"Failed to update access details: {e}")
+        return None
+    finally:
+        cursor.close()
+
+
+
 def add_config_to_db(db, user_id, device_hostname, location, client_name, device_type, config_name, storage_location, file_path, url):
     from datetime import datetime, timedelta, timezone
 
@@ -1349,7 +1393,7 @@ def add_config_to_db(db, user_id, device_hostname, location, client_name, device
 
         # Generate access key and link
         access_key = generate_access_key()
-        link = f"{url}/api/data/{config_id}/{access_key}"
+        link = f"{url}/api/data/get_config_for_cisco/{config_id}/{access_key}"
         expires_at = datetime.now(timezone.utc) + timedelta(weeks=1)
 
         # Insert the shared configuration details
@@ -1487,6 +1531,8 @@ FROM Configurations WHERE ConfigID = %s"""
     result = cursor.fetchone()
     cursor.close()
     return result
+
+
 
 def get_config_list(cnx):
     cursor = cnx.cursor()
