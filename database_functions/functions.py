@@ -771,19 +771,24 @@ def check_api_permission(cnx, passed_key):
 def get_stats(cnx, user_id):
     cursor = cnx.cursor()
 
-    query = ("SELECT UserCreated, ConfigsCreated "
-             "FROM UserStats "
-             "WHERE UserID = %s")
+    # Query to get UserCreated and ConfigsCreated for the specific user
+    user_query = ("SELECT UserCreated, ConfigsCreated "
+                  "FROM UserStats "
+                  "WHERE UserID = %s")
+    cursor.execute(user_query, (user_id,))
+    user_results = cursor.fetchall()
+    user_result = user_results[0] if user_results else None
 
-    cursor.execute(query, (user_id,))
+    # Query to get the total number of configurations
+    total_configs_query = "SELECT COUNT(*) FROM Configurations"
+    cursor.execute(total_configs_query)
+    total_configs_result = cursor.fetchone()
 
-    results = cursor.fetchall()
-    result = results[0] if results else None
-
-    if result:
+    if user_result and total_configs_result:
         stats = {
-            "UserCreated": result[0],
-            "ConfigsCreated": result[1],
+            "UserCreated": user_result[0],
+            "ConfigsCreated": user_result[1],
+            "TotalConfigsCreated": total_configs_result[0]
         }
     else:
         stats = None
@@ -792,6 +797,23 @@ def get_stats(cnx, user_id):
     # cnx.close()
 
     return stats
+
+
+def increment_config_count(cnx, user_id):
+    cursor = cnx.cursor()
+    query = """
+    UPDATE UserStats
+    SET ConfigsCreated = ConfigsCreated + 1
+    WHERE UserID = %s
+    """
+    try:
+        cursor.execute(query, (user_id,))
+        cnx.commit()
+    except Exception as e:
+        cnx.rollback()
+        raise e
+    finally:
+        cursor.close()
 
 def get_session_file_path():
     app_name = 'pinepods'
@@ -1267,6 +1289,37 @@ def delete_scp_user(username):
     import subprocess
     subprocess.run(["userdel", "-r", username], check=True)
 
+def get_config_info(cnx, config_id):
+    cursor = cnx.cursor()
+    try:
+        # Fetch the configuration details
+        query = """
+        SELECT c.ConfigID, c.StorageLocation, s.Link, s.AccessKey
+        FROM Configurations c
+        LEFT JOIN SharedConfigs s ON c.ConfigID = s.ConfigID
+        WHERE c.ConfigID = %s
+        LIMIT 1
+        """
+        cursor.execute(query, (config_id,))
+        result = cursor.fetchone()
+
+        if result:
+            config_id, storage_location, shared_link, access_key = result
+            return {
+                "config_id": config_id,
+                "storage_location": storage_location,
+                "shared_link": shared_link,
+                "access_key": access_key
+            }
+        else:
+            return None
+    except Exception as e:
+        print(f"Failed to get configuration info: {e}")
+        return None
+    finally:
+        cursor.close()
+
+
 def add_config_to_db(db, user_id, device_hostname, location, client_name, device_type, config_name, storage_location, file_path, url):
     from datetime import datetime, timedelta, timezone
 
@@ -1279,7 +1332,7 @@ def add_config_to_db(db, user_id, device_hostname, location, client_name, device
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING ConfigID
         """
-        cursor.execute(query, (user_id, device_hostname, location, client_name, device_type, config_name, storage_location))
+        cursor.execute(query, (user_id, device_hostname, client_name, location, device_type, config_name, storage_location))
         config_id = cursor.fetchone()[0]
 
         # Append the config_id to file path to create unique filename
@@ -1417,6 +1470,15 @@ def get_config_count(cnx):
     cursor.close()
     return count
 
+def get_config_count_user(cnx, user_id):
+    cursor = cnx.cursor()
+    query = "SELECT COUNT(*) FROM Configurations WHERE UserID = %s"
+    cursor.execute(query, (user_id,))
+    count = cursor.fetchone()[0]
+    cursor.close()
+    return count
+
+
 def db_get_config_info(cnx, config_id):
     cursor = cnx.cursor()
     query = """SELECT ConfigID, UserID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation, FilePath, CreatedAt, UpdatedAt
@@ -1445,19 +1507,18 @@ FROM Configurations WHERE UserID = %s"""
     return result
 
 def get_saved_configs(cnx, user_id):
-    try:
-        cursor = cnx.cursor(dictionary=True)
-        query = """
-        SELECT c.*, s.SavedAt
-        FROM Configurations c
-        JOIN SavedConfigurations s ON c.ConfigID = s.ConfigID
-        WHERE c.UserID = %s
-        """
-        cursor.execute(query, (user_id,))
-        saved_configs = cursor.fetchall()
-        return {"saved_configs": saved_configs}
-    finally:
-        cursor.close()
+    cursor = cnx.cursor()
+    query = """
+    SELECT c.ConfigID, c.DeviceHostname, c.ClientName, c.Location, c.DeviceType, c.ConfigName, c.StorageLocation, c.FilePath, c.CreatedAt, s.SavedAt
+    FROM Configurations c
+    JOIN SavedConfigurations s ON c.ConfigID = s.ConfigID
+    WHERE s.UserID = %s
+    """
+    cursor.execute(query, (user_id,))
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
 
 def save_user_config(cnx, user_id, config_id):
     cursor = cnx.cursor()
@@ -1474,3 +1535,17 @@ def save_user_config(cnx, user_id, config_id):
     finally:
         cursor.close()
 
+def remove_saved_user_config(cnx, user_id, config_id):
+    cursor = cnx.cursor()
+    query = """
+    DELETE FROM SavedConfigurations WHERE UserID = %s AND ConfigID = %s
+    """
+    try:
+        cursor.execute(query, (user_id, config_id))
+        cnx.commit()
+    except Exception as e:
+        print(f"Error removing saved configuration: {e}")  # Add logging
+        cnx.rollback()
+        raise e
+    finally:
+        cursor.close()

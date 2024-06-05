@@ -4,17 +4,19 @@ use super::app_drawer::App_drawer;
 use yewdux::prelude::*;
 use crate::components::context::{AppState, UIState};
 use super::search_nav::Search_nav;
-use crate::requests::net_requests::{SavedConfig, get_saved_configs_dummy};
+use crate::requests::net_requests::{SavedConfig, remove_saved_config, get_saved_configs};
 use crate::components::empties::empty_message;
 use wasm_bindgen::closure::Closure;
 use web_sys::{console, window};
 use wasm_bindgen_futures::spawn_local;
+use yew_router::history::{BrowserHistory, History};
 use wasm_bindgen::JsCast;
 use crate::requests::login_requests::use_check_authentication;
 use crate::components::state_messages::UIStateMsg;
 use wasm_bindgen::JsValue;
 // use base64::engine::Config;
 use std::collections::HashSet;
+use crate::components::gen_funcs::format_date;
 
 fn extract_unique_values(configs: &Vec<SavedConfig>) -> (HashSet<String>, HashSet<String>, HashSet<String>) {
     let mut client_names = HashSet::new();
@@ -36,30 +38,6 @@ fn format_date_only(date_time_str: &str) -> String {
     datetime.map(|dt| dt.date().to_string()).unwrap_or_else(|_| String::from("Invalid date"))
 }
 
-// #[derive(Clone)]
-// struct Config {
-//     device_hostname: String,
-//     client_name: String,
-//     location: String,
-//     device_type: String,
-//     saved_at: String,
-// }
-// trait Config {
-//     fn device_hostname(&self) -> &str;
-//     fn client_name(&self) -> &str;
-//     fn location(&self) -> &str;
-//     fn device_type(&self) -> &str;
-//     fn saved_at(&self) -> &str;
-// }
-
-// impl Config for YourConfigType {
-//     fn device_hostname(&self) -> &str { &self.device_hostname }
-//     fn client_name(&self) -> &str { &self.client_name }
-//     fn location(&self) -> &str { &self.location }
-//     fn device_type(&self) -> &str { &self.device_type }
-//     fn saved_at(&self) -> &str { &self.saved_at }
-// }
-
 fn filter_configs(configs: &Vec<SavedConfig>, client_name: &Option<String>, device_type: &Option<String>, location: &Option<String>) -> Vec<SavedConfig> {
     configs.iter().filter(|config| {
         let client_name_matches = client_name.as_ref().map_or(true, |client| &config.client_name == client);
@@ -75,6 +53,7 @@ fn filter_configs(configs: &Vec<SavedConfig>, client_name: &Option<String>, devi
 #[function_component(Saved)]
 pub fn saved() -> Html {
     let (state, dispatch) = use_store::<AppState>();
+    let (_state, _dispatch) = use_store::<UIState>();
     let effect_dispatch = dispatch.clone();
 
     console::log_1(&format!("About to run check auth").into());
@@ -131,6 +110,10 @@ pub fn saved() -> Html {
         let client_names = client_names.clone();
         let device_types = device_types.clone();
         let locations = locations.clone();
+        let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
+        let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
+        let user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone());
+    
 
         use_effect_with((), move |_| {
             let saved_configs = saved_configs.clone();
@@ -138,9 +121,13 @@ pub fn saved() -> Html {
             let client_names = client_names.clone();
             let device_types = device_types.clone();
             let locations = locations.clone();
+            let api_key = api_key.clone();
+            let server_name = server_name.clone();
+            let user_id = user_id.clone();
+
 
             spawn_local(async move {
-                match get_saved_configs_dummy("https://dummyapi.com", 123, &Some("dummyapikey".to_string())).await {
+                match get_saved_configs(&server_name.unwrap(), user_id.unwrap(), &api_key.unwrap()).await {
                     Ok(configs) => {
                         let (clients, devices, locs) = extract_unique_values(&configs);
                         client_names.set(clients);
@@ -230,6 +217,50 @@ pub fn saved() -> Html {
 
 
     let filtered_configs = filter_configs(&*saved_configs, &*selected_client_name, &*selected_device_type, &*selected_location);
+    
+    let on_remove_saved_config = {
+        let api_key = state.auth_details.as_ref().map(|ud| ud.api_key.clone());
+        let server_name = state.auth_details.as_ref().map(|ud| ud.server_name.clone());
+        let user_id = state.user_details.as_ref().map(|ud| ud.UserID.clone()).unwrap_or(0);
+    
+        Callback::from(move |config_id: i32| {
+            let api_key = api_key.clone();
+            let server_name = server_name.clone();
+            let call_dispatch = _dispatch.clone();
+            let saved_configs = saved_configs.clone();
+            spawn_local(async move {
+                match remove_saved_config(&server_name.unwrap(), user_id, config_id, &api_key.unwrap()).await {
+                    Ok(_) => {
+                        web_sys::console::log_1(&JsValue::from_str("Configuration removed successfully"));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.info_message = Option::from("Configuration saved successfully".to_string()));
+                        saved_configs.set(saved_configs.iter().cloned().filter(|config| config.config_id != config_id).collect());
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&JsValue::from_str(&format!("Failed to remove configuration: {}", e)));
+                        call_dispatch.reduce_mut(|audio_state| audio_state.error_message = Option::from("Failed to remove configuration".to_string()));
+                    }
+                }
+            });
+        })
+    };
+
+    fn update_current_editing_config(dispatch: Dispatch<AppState>, config_id: i32) {
+        dispatch.reduce_mut(|state| {
+            state.current_editing_config = Some(config_id);
+            state.clone()
+        });
+    }
+    
+    let on_edit_config = {
+        let history = BrowserHistory::new();
+        let history_clone = history.clone();
+        let dispatch = dispatch.clone();
+    
+        Callback::from(move |config_id: i32| {
+            update_current_editing_config(dispatch.clone(), config_id);
+            history_clone.push("/edit_config");
+        })
+    };
     
 
     html! {
@@ -344,6 +375,7 @@ pub fn saved() -> Html {
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         {
                                             for filtered_configs.iter().map(|config| {
+                                                let config_id = config.config_id;
                                                 html! {
                                                     <div class="config-card">
                                                         <div class="config-item">
@@ -364,11 +396,11 @@ pub fn saved() -> Html {
                                                         </div>
                                                         <div class="config-item">
                                                             <span class="config-label">{"Saved On: "}</span>
-                                                            <span class="config-value">{format_date_only(&config.saved_at)}</span>
+                                                            <span class="config-value">{format_date(&config.saved_at)}</span>
                                                         </div>
                                                         <div class="config-item">
-                                                            <button class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>
-                                                            <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Remove Saved Config"}</button>
+                                                        <button onclick={on_edit_config.reform(move |_| config_id.clone())} class="bg-blue-500 mr-5 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Edit Config"}</button>
+                                                            <button onclick={on_remove_saved_config.reform(move |_| config_id.clone())} class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 mt-3 rounded">{"Remove Saved Config"}</button>
                                                         </div>
                                                     </div>
                                                 }

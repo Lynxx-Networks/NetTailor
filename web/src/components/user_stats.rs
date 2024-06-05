@@ -101,17 +101,21 @@ pub fn user_stats() -> Html {
                                         </div>
 
                                         <div class="stats-card">
-                                            <p class="stats-label">{"Configs Created"}</p>
-                                            <p class="stats-value">{ &stats.PodcastsPlayed }</p>
+                                            <p class="stats-label">{"Configs You've Created"}</p>
+                                            <p class="stats-value">{ &stats.ConfigsCreated }</p>
+                                        </div>
+
+                                        <div class="stats-card">
+                                            <p class="stats-label">{"Configs Total"}</p>
+                                            <p class="stats-value">{ &stats.TotalConfigsCreated }</p>
                                         </div>
 
                                         <div class="large-card col-span-1 md:col-span-3">
-                                            <img src="static/assets/favicon.png" alt="Pinepods Logo" class="large-card-image"/>
-                                            <p class="large-card-paragraph item_container-text">{"Thanks for using Pinepods! This app was born from a love for podcasts, of homelabs, and a desire to have a secure and central location to manage personal data. Feel free to reach out for questions and open an issue if you have ideas for new features. Pull Requests on this software are welcome and encouraged. If you feel that you've gotten use out of this software and are thankful for it's existence donations to my Buymeacoffee are welcome but never required. Lastly, this app will ALWAYS remain open source."}</p>
+                                            <img src="static/assets/favicon.png" alt="NetTailor Logo" class="large-card-image"/>
+                                            <p class="large-card-paragraph item_container-text">{"Thanks for using NetTailor! This app was born from a need to automate easy creation of network configurations and keeping those configs backed up with zero effort along with that. Feel free to reach out for questions and open an issue if you have ideas for new features. Pull Requests on this software are welcome and encouraged."}</p>
                                             <div class="large-card-content flex flex-col space-y-2">
-                                                <a href="https://pinepods.online" target="_blank" class="large-card-button focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">{"Pinepods Documentation"}</a>
-                                                <a href="https://github.com/madeofpendletonwool/pinepods" target="_blank" class="large-card-button focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">{"Pinepods Github Repo"}</a>
-                                                <a href="https://www.buymeacoffee.com/collinscoffee" target="_blank" class="large-card-button focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">{"Buy me a Coffee"}</a>
+                                                <a href="https://nettailor.org" target="_blank" class="large-card-button focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">{"NetTailor Documentation"}</a>
+                                                <a href="https://github.com/Lynxx-Networks/NetTailor" target="_blank" class="large-card-button focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none">{"NetTailor Github Repo"}</a>
 
                                                 // Additional content...
                                             </div>
