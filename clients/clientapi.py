@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from azure.storage.blob import BlobServiceClient
 
 # Needed Modules
 from passlib.context import CryptContext
@@ -65,6 +66,15 @@ if database_type == "postgresql":
     print(f"You've selected a postgresql database.")
 else:
     print("You've selected a mariadb database")
+
+use_cloud_storage_string = os.getenv('USE_CLOUD_STORAGE', 'False')
+use_cloud_storage = use_cloud_storage_string.lower() == 'true'
+if use_cloud_storage:
+    print("Using cloud storage.")
+    blob_service_client = BlobServiceClient(account_url=os.getenv('BLOB_SERVICE_URL'), credential=os.getenv('BLOB_SAS_TOKEN'))
+    storage_container_name = os.getenv('STORAGE_CONTAINER_NAME')
+else:
+    print("Using local storage.")
 
 secret_key_middle = secrets.token_hex(32)
 
@@ -1548,9 +1558,8 @@ async def add_config(data: DeviceConfig, cnx=Depends(get_database_connection),
     logger.error(f"User ID from API Key: {user_id_from_api_key}")
 
     # Determine the storage location based on environment settings
-    use_cloud_storage = os.getenv("USE_CLOUD_STORAGE", "False") == "True"
     storage_location = "cloud" if use_cloud_storage else "local"
-    file_path = f"/opt/nettailor/configs" if not use_cloud_storage else "path-for-cloud-storage"
+    file_path = f"/opt/nettailor/configs" if not use_cloud_storage else ""
     logger.error(f"Storage location: {storage_location}, File path: {file_path}")
 
     # Call the database function to add the config
@@ -1613,6 +1622,17 @@ async def upload_local(
 
     return {"success": True, "message": "Configuration uploaded locally"}
 
+@app.post("/api/data/upload_cloud/{config_id}")
+async def upload_cloud(config_id: int, data: UploadLocalConfig, api_key: str = Depends(get_api_key_from_header)):
+    try:
+        container_client = blob_service_client.get_container_client(container=os.getenv("STORAGE_CONTAINER_NAME"))
+        blob_client = container_client.get_blob_client(blob=f"{config_id}.conf")
+        blob_client.upload_blob(data.config_content)
+    except Exception as e:
+        print(f"Failed to upload configuration to cloud: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload configuration to cloud: {str(e)}")
+    return {"success": True, "message": "Configuration uploaded to cloud"}
+
 @app.put("/api/data/edit_config/{config_id}")
 async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_database_connection),
                       api_key: str = Depends(get_api_key_from_header)):
@@ -1635,16 +1655,26 @@ async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_d
     # Call the database function to edit the updated at time
     database_functions.functions.edit_config(cnx, config_id)
 
-    # Ensure the directory for file_path exists
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    if use_cloud_storage:
+        try:
+            container_client = blob_service_client.get_container_client(container=os.getenv("STORAGE_CONTAINER_NAME"))
+            blob_client = container_client.get_blob_client(blob=f"{config_id}.conf")
+            blob_client.upload_blob(data.config_content, overwrite=True)
+        except Exception as e:
+            print(f"Failed to upload configuration to cloud: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload configuration to cloud: {str(e)}")
+        
+    else:
+        # Ensure the directory for file_path exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    print(file_path)
+        print(file_path)
 
-    try:
-        with open(file_path, "w") as file:
-            file.write(data.config_content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
+        try:
+            with open(file_path, "w") as file:
+                file.write(data.config_content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save configuration locally: {str(e)}")
     
     # Fetch the updated configuration details
     config_info = database_functions.functions.get_config_info(cnx, config_id)
@@ -1660,18 +1690,70 @@ async def edit_config(config_id: int, data: UploadLocalConfig, cnx=Depends(get_d
         "access_key": config_info["access_key"],
     }
 
+@app.delete("/api/data/delete_config/{config_id}")
+async def delete_config(config_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
+    # Validate API Key
+    is_valid_key = database_functions.functions.verify_api_key(cnx, api_key)
+    if not is_valid_key:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    # Fetch configuration information
+    query = "SELECT UserID, FilePath FROM Configurations WHERE ConfigID = %s LIMIT 1"
+    cursor = cnx.cursor()
+    cursor.execute(query, (config_id,))
+    config_info = cursor.fetchone()
+
+    if not config_info:
+        raise HTTPException(status_code=404, detail="Configuration not found")
+
+    user_id, file_path = config_info
+
+    # Ensure the user has permission to delete this config
+    user_id_from_api_key = database_functions.functions.id_from_api_key(cnx, api_key)
+    if user_id != user_id_from_api_key:
+        raise HTTPException(status_code=403, detail="Unauthorized access")
+
+    # Call the database function to delete the config
+    database_functions.functions.delete_config(cnx, config_id)
+
+    if use_cloud_storage:
+        try:
+            container_client = blob_service_client.get_container_client(container=os.getenv("STORAGE_CONTAINER_NAME"))
+            blob_client = container_client.get_blob_client(blob=f"{config_id}.conf")
+            blob_client.delete_blob()
+        except Exception as e:
+            print(f"Failed to delete configuration from cloud: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete configuration from cloud: {str(e)}")
+    else:
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to delete configuration locally: {str(e)}")
+
+    return {"success": True, "message": "Configuration deleted successfully"}
+
 @app.get("/api/data/get_config_for_cisco/{config_id}/{access_key}")
 async def get_config_for_cisco(config_id: int, access_key: str, cnx=Depends(get_database_connection)):
     file_path, error = database_functions.functions.get_shared_configuration(cnx, config_id, access_key)
     if error:
         raise HTTPException(status_code=404, detail=f"Failed to retrieve config: {error}")
 
-    try:
-        with open(file_path, 'r') as file:
-            config_content = file.read()
-        return Response(content=config_content, media_type="text/plain")
-    except IOError as e:
-        raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
+    if use_cloud_storage:
+        try:
+            container_client = blob_service_client.get_container_client(container=os.getenv("STORAGE_CONTAINER_NAME"))
+            blob_client = container_client.get_blob_client(blob=f"{config_id}.conf")
+            config_content = blob_client.download_blob().content_as_text()
+            return Response(content=config_content, media_type="text/plain")
+        except Exception as e:
+            print(f"Failed to download configuration from cloud: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to download configuration from cloud: {str(e)}")
+    else:
+        try:
+            with open(file_path, 'r') as file:
+                config_content = file.read()
+            return Response(content=config_content, media_type="text/plain")
+        except IOError as e:
+            raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
     
 @app.get("/api/data/get_config_raw/{config_id}")
 async def get_config_raw(config_id: int, cnx=Depends(get_database_connection), api_key: str = Depends(get_api_key_from_header)):
@@ -1683,12 +1765,22 @@ async def get_config_raw(config_id: int, cnx=Depends(get_database_connection), a
     if error:
         raise HTTPException(status_code=404, detail=f"Failed to retrieve config: {error}")
     
-    try:
-        with open(file_path, 'r') as file:
-            config_content = file.read()
-        return Response(content=config_content, media_type="text/plain")
-    except IOError as e:
-        raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
+    if use_cloud_storage:
+        try:
+            container_client = blob_service_client.get_container_client(container=os.getenv("STORAGE_CONTAINER_NAME"))
+            blob_client = container_client.get_blob_client(blob=f"{config_id}.conf")
+            config_content = blob_client.download_blob().content_as_text()
+            return Response(content=config_content, media_type="text/plain")
+        except Exception as e:
+            print(f"Failed to download configuration from cloud: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to download configuration from cloud: {str(e)}")
+    else:
+        try:
+            with open(file_path, 'r') as file:
+                config_content = file.read()
+            return Response(content=config_content, media_type="text/plain")
+        except IOError as e:
+            raise HTTPException(status_code=500, detail=f"Error reading configuration file: {str(e)}")
     
 @app.get("/api/data/get_config_info/{config_id}")
 async def get_config_info(config_id: int, api_key: str = Depends(get_api_key_from_header), cnx=Depends(get_database_connection)):

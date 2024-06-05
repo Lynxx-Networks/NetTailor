@@ -1325,6 +1325,7 @@ def add_config_to_db(db, user_id, device_hostname, location, client_name, device
 
     cursor = db.cursor()
     try:
+        print(f"Storage Location for config {config_name}: {storage_location}")
         # Insert basic configuration data
         query = """
         INSERT INTO Configurations (UserID, DeviceHostname, ClientName, Location, DeviceType, ConfigName, StorageLocation)
@@ -1379,6 +1380,30 @@ def edit_config(db, config_id):
         db.rollback()
         print(f"Failed to update configuration: {e}")
 
+def delete_config(db, config_id):
+    cursor = db.cursor()
+    try:
+        # Get the file path for the configuration
+        query = "SELECT FilePath FROM Configurations WHERE ConfigID = %s"
+        cursor.execute(query, (config_id,))
+        file_path = cursor.fetchone()[0]
+
+        # Delete the shared configuration first to satisfy the foreign key constraint
+        query_delete_shared = "DELETE FROM SharedConfigs WHERE ConfigID = %s"
+        cursor.execute(query_delete_shared, (config_id,))
+
+        # Delete the configuration
+        query_delete = "DELETE FROM Configurations WHERE ConfigID = %s"
+        cursor.execute(query_delete, (config_id,))
+
+        db.commit()
+        return file_path
+    except Exception as e:
+        db.rollback()
+        print(f"Failed to delete configuration: {e}")
+        return None
+    finally:
+        cursor.close()
 
 def get_shared_configuration(db, config_id, access_key):
     from datetime import datetime, timezone

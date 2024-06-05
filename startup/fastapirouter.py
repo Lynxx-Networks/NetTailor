@@ -91,6 +91,21 @@ async def proxy_image_requests(request: Request):
             return Response(content=f"Proxy Error: {exc}", status_code=502)
 
         return Response(content=response.content, status_code=response.status_code, headers=dict(response.headers))
+    
+@app.api_route("/docs", methods=["GET"])
+async def proxy_docs_requests(request: Request):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.request(
+                request.method,
+                f"http://localhost:8032/docs",
+                cookies=request.cookies,
+            )
+        except httpx.HTTPError as exc:
+            print(f"An error occurred while making the request: {exc}")
+            return Response(content=f"Proxy Error: {exc}", status_code=502)
+
+        return Response(content=response.content, status_code=response.status_code, headers=dict(response.headers))
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
