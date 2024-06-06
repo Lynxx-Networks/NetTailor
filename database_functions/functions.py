@@ -70,11 +70,16 @@ def add_azure_user(cnx, user_info):
         username = user_info.get('email').split('@')[0]  # Simplistic username generation from email
         email = user_info.get('email')
         hashed_pw = 'external'  # Placeholder or use NULL if your DB schema allows
+        print(f"Adding Azure user with username: {username}, email: {email}")
+        print(f"Fullname: {fullname}")
+        print(f"Email: {email}")
+        print(f"Hashed Password: {hashed_pw}")
 
         add_user_query = ("INSERT INTO Users "
                           "(Fullname, Username, Email, Hashed_PW, IsAdmin) "
                           "VALUES (%s, %s, %s, %s, 0)")
         cursor.execute(add_user_query, (fullname, username, email, hashed_pw))
+        print("User added successfully")
 
         user_id = cursor.lastrowid
 
@@ -178,6 +183,29 @@ def add_admin_user(cnx, user_values):
 
     cursor.close()
 
+def get_azure_config(cnx):
+    cursor = cnx.cursor()
+    try:
+        # Fetch all necessary Azure configuration details
+        cursor.execute("""
+            SELECT TenantID, ClientID, Secret, RedirectURI 
+            FROM ExternalAuth 
+            WHERE Provider = 'Azure'
+        """)
+        result = cursor.fetchone()
+        if result:
+            return {
+                "TenantID": result[0],
+                "ClientID": result[1],
+                "Secret": result[2],
+                "RedirectURI": result[3]
+            }
+        else:
+            raise Exception("Azure configuration not found in the database.")
+    finally:
+        cursor.close()
+
+
 
 def exchange_code_for_token(cnx, code):
     try:
@@ -193,17 +221,17 @@ def exchange_code_for_token(cnx, code):
         }
         
         response = requests.post(token_url, data=data)
-        logging.debug(f"Request sent to Azure Token URL: {token_url} with data {data}")
-        logging.debug(f"Response from Azure: {response.text}")
+        print(f"Request sent to Azure Token URL: {token_url} with data {data}")
+        print(f"Response from Azure: {response.text}")
 
         if response.status_code == 200:
             return response.json()
         else:
             error_message = response.json().get('error_description', 'No error description provided')
-            logging.error(f"Failed to exchange code for token: {error_message}")
+            print(f"Failed to exchange code for token: {error_message}")
             raise Exception(f"Failed to exchange code for token: {error_message}")
     except Exception as e:
-        logging.error(f"Error during token exchange: {str(e)}", exc_info=True)
+        print(f"Error during token exchange: {str(e)}", exc_info=True)
         raise Exception(f"Error during token exchange: {str(e)}")
 
 
@@ -1159,6 +1187,7 @@ def delete_mfa_secret(database_type, cnx, user_id):
         return False
 
 def setup_timezone_info(database_type, cnx, user_id, timezone, hour_pref, date_format):
+    print(f"Setting up time info for user {user_id}")
     if database_type == "postgresql":
         cursor = cnx.cursor(cursor_factory=RealDictCursor)
     else:  # Assuming MariaDB/MySQL if not PostgreSQL

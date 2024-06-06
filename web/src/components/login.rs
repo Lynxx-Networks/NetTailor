@@ -1130,11 +1130,12 @@ pub fn login() -> Html {
             // page_state.set(PageState::Default);
 
             let timezone_info = TimeZoneInfo {
-                user_id: *temp_user_id, // assuming temp_user_id is a use_state of i32
+                user_id: user_id, // assuming temp_user_id is a use_state of i32
                 timezone: (*time_zone).clone(),
                 hour_pref: *time_pref,
                 date_format: (*date_format).clone(),
             };
+            web_sys::console::log_1(&format!("Time Zone Info: {:?}", timezone_info).into());
             console::log_1(&format!("Time Zone Info: {:?}", timezone_info).into());
             
             wasm_bindgen_futures::spawn_local(async move {
