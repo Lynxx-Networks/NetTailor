@@ -12,9 +12,9 @@ RUN cargo install wasm-bindgen-cli
 
 RUN apk update && apk upgrade
 
-RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 
-RUN apk add trunk@testing
+RUN apk add trunk@edge
 
 # Add your application files to the builder stage
 COPY ./web /app
@@ -27,7 +27,7 @@ RUN trunk build --release
 FROM alpine:3.19
 
 # Metadata
-LABEL maintainer="Collin Pendleton <collinp@collinpendleton.com>"
+LABEL maintainer="Ryan Gallenberg <rgallenberg@3rtnetworks.com>"
 
 # Install runtime dependencies
 RUN apk add --no-cache nginx openssh python3 openssl py3-pip bash mariadb-client postgresql-dev curl cronie openrc supervisor
